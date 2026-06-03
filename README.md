@@ -21,6 +21,53 @@ npm test
 npm run test:watch
 ```
 
+## Deployment to Vercel
+
+### Prerequisites
+- Vercel account (https://vercel.com)
+- GitHub repository (for CI/CD integration)
+- PostgreSQL database (e.g., Neon, Railway, AWS RDS)
+- Generated JWT secret key
+
+### Backend Deployment Steps
+
+1. Create a new project in Vercel:
+   - Link to the `cfc-digital-backend` GitHub repository
+   - Vercel will auto-detect Node.js project
+
+2. Configure environment variables in Vercel dashboard:
+   - `DATABASE_URL`: PostgreSQL connection string
+     - Example: `postgresql://user:password@host:5432/cfc_digital`
+   - `JWT_SECRET`: Long random secret key (use `openssl rand -base64 32` to generate)
+   - `NODE_ENV`: Set to `production`
+   - `PORT`: Set to `3001` (Vercel will override with dynamic port)
+
+3. Deploy:
+   - Push to main branch or use Vercel dashboard's deploy button
+   - Vercel will run `npm install` and start the server
+   - Backend URL will be provided (e.g., `https://cfc-digital-backend.vercel.app`)
+
+### Frontend Deployment Steps
+
+1. Create a new Vercel project for `cfc-digital`:
+   - Link to the `cfc-digital` GitHub repository
+   - Vercel auto-detects Next.js
+
+2. Configure environment variables:
+   - `NEXT_PUBLIC_API_URL`: Backend URL (e.g., `https://cfc-digital-backend.vercel.app/api`)
+   - Deploy after backend is deployed to get the correct URL
+
+3. Deploy:
+   - Push to main or use Vercel dashboard
+   - Frontend will be available at Vercel's provided URL
+
+### Notes
+- `.vercelignore` excludes unnecessary files from deployment bundle
+- `vercel.json` references environment variables using `@` prefix (Vercel's secret reference syntax)
+- Both projects need separate Vercel projects for independent deployment
+- API communication uses `NEXT_PUBLIC_API_URL` environment variable (frontend → backend)
+- Ensure database is accessible from Vercel (check security groups/firewalls)
+
 ## API
 
 Base URL: `http://localhost:3001/api`
