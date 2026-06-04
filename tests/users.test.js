@@ -44,13 +44,41 @@ describe('User CRUD Routes', () => {
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(response.body)).toBe(true);
-      expect(response.body.length).toBe(3); // admin, student, instructor
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data.length).toBe(3);
 
-      // Verify no password_hash in response
-      response.body.forEach((user) => {
+      response.body.data.forEach((user) => {
         expect(user.password_hash).toBeUndefined();
       });
+    });
+
+    test('returns paginated shape', async () => {
+      const response = await request(app)
+        .get('/api/users')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body).toHaveProperty('meta');
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.meta).toMatchObject({
+        page: 1,
+        limit: 20,
+        total: 3,
+        totalPages: 1,
+      });
+    });
+
+    test('respects page and limit params', async () => {
+      const response = await request(app)
+        .get('/api/users?page=1&limit=2')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.length).toBe(2);
+      expect(response.body.meta.limit).toBe(2);
+      expect(response.body.meta.total).toBe(3);
+      expect(response.body.meta.totalPages).toBe(2);
     });
 
     test('Should reject list by non-admin', async () => {
