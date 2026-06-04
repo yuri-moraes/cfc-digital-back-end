@@ -4,6 +4,7 @@ import { Enrollment } from '../models/Enrollment.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { USER_ROLES } from '../constants.js';
+import { paginate, paginatedResponse } from '../utils/paginate.js';
 
 const router = express.Router();
 
@@ -19,46 +20,30 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const { studentId, classId } = req.query;
     const { userId, role } = req.user;
+    const { page, limit, offset } = paginate(req);
 
-    // Handle studentId filter
     if (studentId) {
-      // Students can only view own enrollments
       if (role === USER_ROLES.STUDENT && userId !== studentId) {
-        return res.status(403).json({
-          error: 'Forbidden',
-          statusCode: 403,
-        });
+        return res.status(403).json({ error: 'Forbidden', statusCode: 403 });
       }
-
-      // Get enrollments for student
-      const enrollments = await Enrollment.listByStudent(studentId);
-      return res.status(200).json(enrollments);
+      const { rows, total } = await Enrollment.listByStudent(studentId, { limit, offset });
+      return res.status(200).json(paginatedResponse(rows, total, { page, limit }));
     }
 
-    // Handle classId filter
     if (classId) {
-      // Get enrollments for class
-      const enrollments = await Enrollment.listByClass(classId);
-      return res.status(200).json(enrollments);
+      const { rows, total } = await Enrollment.listByClass(classId, { limit, offset });
+      return res.status(200).json(paginatedResponse(rows, total, { page, limit }));
     }
 
-    // No filter - admin can view all, others cannot
     if (role !== USER_ROLES.ADMIN) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        statusCode: 403,
-      });
+      return res.status(403).json({ error: 'Forbidden', statusCode: 403 });
     }
 
-    // Admin viewing all enrollments
-    const enrollments = await Enrollment.listAll();
-    res.status(200).json(enrollments);
+    const { rows, total } = await Enrollment.listAll({ limit, offset });
+    res.status(200).json(paginatedResponse(rows, total, { page, limit }));
   } catch (error) {
     const statusCode = error.statusCode || 500;
-    res.status(statusCode).json({
-      error: error.message,
-      statusCode,
-    });
+    res.status(statusCode).json({ error: error.message, statusCode });
   }
 });
 
