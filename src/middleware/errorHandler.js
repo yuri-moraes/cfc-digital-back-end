@@ -1,18 +1,28 @@
 import { logger } from '../utils/logger.js';
 
-const reportToSentry = process.env.SENTRY_DSN
-  ? (async () => {
+let sentryReporter = () => {};
+
+if (process.env.SENTRY_DSN) {
+  (async () => {
+    try {
       const { default: Sentry } = await import('@sentry/node');
       Sentry.init({ dsn: process.env.SENTRY_DSN });
-      return (err) => Sentry.captureException(err);
-    })()
-  : Promise.resolve(() => {});
+      sentryReporter = (err) => Sentry.captureException(err);
+    } catch (err) {
+      logger.warn({ err }, 'Sentry init failed');
+    }
+  })();
+}
 
 export const errorHandler = (err, req, res, next) => {
   logger.error({ path: req.path, userId: req.user?.id, err }, 'Unhandled error');
 
   if (!err.statusCode || err.statusCode >= 500) {
-    reportToSentry.then((report) => report(err)).catch(() => {});
+    try {
+      sentryReporter(err);
+    } catch {
+      // Sentry errors must never affect the HTTP response
+    }
   }
 
   const statusCode = err.statusCode || 500;

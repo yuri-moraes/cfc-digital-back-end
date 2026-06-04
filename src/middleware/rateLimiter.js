@@ -1,4 +1,5 @@
 import rateLimit from 'express-rate-limit';
+import { verifyToken, extractTokenFromHeader } from '../utils/jwt.js';
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -9,6 +10,14 @@ export const authLimiter = rateLimit({
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 100,
-  keyGenerator: (req) => req.user?.id || req.ip,
+  keyGenerator: (req) => {
+    try {
+      const token = extractTokenFromHeader(req.headers.authorization);
+      const payload = verifyToken(token);
+      return payload.userId;
+    } catch {
+      return req.ip;
+    }
+  },
   message: { error: 'Too many requests, please try again later.', statusCode: 429 },
 });

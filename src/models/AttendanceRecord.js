@@ -108,7 +108,7 @@ export class AttendanceRecord {
     await AttendanceRecord.deleteExpired();
 
     const params = [];
-    const studentFilter = studentId ? `AND ar.student_id = $${params.push(studentId)}` : '';
+    const studentFilter = studentId ? ` AND ar.student_id = $${params.push(studentId)}` : '';
 
     const [dataResult, countResult] = await Promise.all([
       query(
