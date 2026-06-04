@@ -52,8 +52,11 @@ export class AttendanceRecord {
     return result.rows[0];
   }
 
-  static async findBySchedule(scheduleId, attendanceDate, { limit = 20, offset = 0 } = {}) {
+  static async findBySchedule(scheduleId, attendanceDate, { limit = 20, offset = 0, studentId = null } = {}) {
     await AttendanceRecord.deleteExpired();
+
+    const params = [scheduleId, attendanceDate];
+    const studentFilter = studentId ? ` AND ar.student_id = $${params.push(studentId)}` : '';
 
     const [dataResult, countResult] = await Promise.all([
       query(
@@ -62,14 +65,14 @@ export class AttendanceRecord {
                 u.name as student_name
          FROM attendance_records ar
          JOIN users u ON ar.student_id = u.id
-         WHERE ar.schedule_id = $1 AND ar.attendance_date = $2
+         WHERE ar.schedule_id = $1 AND ar.attendance_date = $2${studentFilter}
          ORDER BY u.name
-         LIMIT $3 OFFSET $4`,
-        [scheduleId, attendanceDate, limit, offset]
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset]
       ),
       query(
-        'SELECT COUNT(*) FROM attendance_records WHERE schedule_id = $1 AND attendance_date = $2',
-        [scheduleId, attendanceDate]
+        `SELECT COUNT(*) FROM attendance_records ar WHERE ar.schedule_id = $1 AND ar.attendance_date = $2${studentFilter}`,
+        params
       ),
     ]);
     return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
@@ -101,8 +104,11 @@ export class AttendanceRecord {
     return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
-  static async findPending({ limit = 20, offset = 0 } = {}) {
+  static async findPending({ limit = 20, offset = 0, studentId = null } = {}) {
     await AttendanceRecord.deleteExpired();
+
+    const params = [];
+    const studentFilter = studentId ? `AND ar.student_id = $${params.push(studentId)}` : '';
 
     const [dataResult, countResult] = await Promise.all([
       query(
@@ -111,12 +117,15 @@ export class AttendanceRecord {
                 u.name as student_name
          FROM attendance_records ar
          JOIN users u ON ar.student_id = u.id
-         WHERE ar.status = 'pending'
+         WHERE ar.status = 'pending' ${studentFilter}
          ORDER BY ar.photo_uploaded_at ASC
-         LIMIT $1 OFFSET $2`,
-        [limit, offset]
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset]
       ),
-      query("SELECT COUNT(*) FROM attendance_records WHERE status = 'pending'"),
+      query(
+        `SELECT COUNT(*) FROM attendance_records ar WHERE ar.status = 'pending' ${studentFilter}`,
+        params
+      ),
     ]);
     return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }

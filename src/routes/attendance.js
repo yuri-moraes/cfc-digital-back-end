@@ -16,20 +16,13 @@ router.get('/', authMiddleware, async (req, res) => {
     const { userId, role } = req.user;
     const { page, limit, offset } = paginate(req);
 
+    const studentFilter = role === USER_ROLES.STUDENT ? userId : null;
     let result;
 
     if (status === 'pending') {
-      result = await AttendanceRecord.findPending({ limit, offset });
-      if (role === USER_ROLES.STUDENT) {
-        result.rows = result.rows.filter((r) => r.student_id === userId);
-        result.total = result.rows.length;
-      }
+      result = await AttendanceRecord.findPending({ limit, offset, studentId: studentFilter });
     } else if (scheduleId && date) {
-      result = await AttendanceRecord.findBySchedule(scheduleId, date, { limit, offset });
-      if (role === USER_ROLES.STUDENT) {
-        result.rows = result.rows.filter((r) => r.student_id === userId);
-        result.total = result.rows.length;
-      }
+      result = await AttendanceRecord.findBySchedule(scheduleId, date, { limit, offset, studentId: studentFilter });
     } else if (studentId && classId) {
       if (role === USER_ROLES.STUDENT && userId !== studentId) {
         return res.status(403).json({ error: 'Forbidden', statusCode: 403 });
