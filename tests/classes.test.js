@@ -65,10 +65,10 @@ describe('Classes Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(response.body).toHaveLength(2);
-      expect(response.body[0].name).toBe('Physics 101'); // Most recent first (DESC order)
-      expect(response.body[1].name).toBe('Math 101');
-      expect(response.body[0].instructor_name).toBe('Instructor User');
+      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data[0].name).toBe('Physics 101'); // Most recent first (DESC order)
+      expect(response.body.data[1].name).toBe('Math 101');
+      expect(response.body.data[0].instructor_name).toBe('Instructor User');
     });
 
     it('should return empty list when no classes', async () => {
@@ -77,7 +77,7 @@ describe('Classes Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(response.body).toEqual([]);
+      expect(response.body.data).toEqual([]);
     });
 
     it('should require authentication', async () => {
@@ -86,6 +86,35 @@ describe('Classes Routes', () => {
         .expect(401);
 
       expect(response.body.error).toBeDefined();
+    });
+
+    test('returns paginated shape', async () => {
+      await Class.create('Math', null, instructorUser.id);
+      await Class.create('English', null, instructorUser.id);
+
+      const response = await request(app)
+        .get('/api/classes')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.meta.total).toBe(2);
+    });
+
+    test('respects limit param', async () => {
+      await Class.create('Math', null, instructorUser.id);
+      await Class.create('English', null, instructorUser.id);
+      await Class.create('Science', null, instructorUser.id);
+
+      const response = await request(app)
+        .get('/api/classes?limit=2')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.length).toBe(2);
+      expect(response.body.meta.total).toBe(3);
+      expect(response.body.meta.totalPages).toBe(2);
     });
   });
 

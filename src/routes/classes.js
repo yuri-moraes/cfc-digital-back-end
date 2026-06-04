@@ -4,6 +4,7 @@ import { Class } from '../models/Class.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { USER_ROLES } from '../constants.js';
+import { paginate, paginatedResponse } from '../utils/paginate.js';
 
 const router = express.Router();
 
@@ -14,14 +15,12 @@ const router = express.Router();
  */
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const classes = await Class.list();
-    res.status(200).json(classes);
+    const { page, limit, offset } = paginate(req);
+    const { rows, total } = await Class.list({ limit, offset });
+    res.status(200).json(paginatedResponse(rows, total, { page, limit }));
   } catch (error) {
     const statusCode = error.statusCode || 500;
-    res.status(statusCode).json({
-      error: error.message,
-      statusCode,
-    });
+    res.status(statusCode).json({ error: error.message, statusCode });
   }
 });
 
