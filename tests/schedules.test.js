@@ -244,9 +244,9 @@ describe('Schedules Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(response.body).toHaveLength(2);
-      expect(response.body[0].id).toBe(schedule1.id);
-      expect(response.body[1].id).toBe(schedule2.id);
+      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data[0].id).toBe(schedule1.id);
+      expect(response.body.data[1].id).toBe(schedule2.id);
     });
 
     it('should return empty list when class has no schedules', async () => {
@@ -255,7 +255,7 @@ describe('Schedules Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(response.body).toEqual([]);
+      expect(response.body.data).toEqual([]);
     });
 
     it('should return empty list when no query params provided', async () => {
@@ -268,7 +268,7 @@ describe('Schedules Routes', () => {
         .expect(200);
 
       // Should return empty since no classId or instructorId provided
-      expect(response.body).toEqual([]);
+      expect(response.body.data).toEqual([]);
     });
 
     it('should require authentication', async () => {
@@ -277,6 +277,34 @@ describe('Schedules Routes', () => {
         .expect(401);
 
       expect(response.body.error).toBeDefined();
+    });
+
+    test('returns paginated shape for classId filter', async () => {
+      await Schedule.create(testClass.id, 'Monday', '09:00', '10:00');
+      await Schedule.create(testClass.id, 'Wednesday', '09:00', '10:00');
+
+      const response = await request(app)
+        .get(`/api/schedules?classId=${testClass.id}`)
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.meta.total).toBe(2);
+    });
+
+    test('respects limit param', async () => {
+      await Schedule.create(testClass.id, 'Monday', '09:00', '10:00');
+      await Schedule.create(testClass.id, 'Wednesday', '09:00', '10:00');
+      await Schedule.create(testClass.id, 'Friday', '09:00', '10:00');
+
+      const response = await request(app)
+        .get(`/api/schedules?classId=${testClass.id}&limit=2`)
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(response.body.data.length).toBe(2);
+      expect(response.body.meta.total).toBe(3);
+      expect(response.body.meta.totalPages).toBe(2);
     });
   });
 
@@ -293,9 +321,9 @@ describe('Schedules Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(response.body).toHaveLength(2);
-      expect(response.body.some(s => s.id === schedule1.id)).toBe(true);
-      expect(response.body.some(s => s.id === schedule2.id)).toBe(true);
+      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data.some(s => s.id === schedule1.id)).toBe(true);
+      expect(response.body.data.some(s => s.id === schedule2.id)).toBe(true);
     });
 
     it('should return empty list when instructor has no schedules', async () => {
@@ -304,7 +332,7 @@ describe('Schedules Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(response.body).toEqual([]);
+      expect(response.body.data).toEqual([]);
     });
   });
 
