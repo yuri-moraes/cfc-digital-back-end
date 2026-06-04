@@ -7,6 +7,7 @@ import enrollmentRouter from './enrollments.js';
 import assignmentsRouter from './assignments.js';
 import gradesRouter from './grades.js';
 import attendanceRouter from './attendance.js';
+import notificationsRouter from './notifications.js';
 
 /**
  * Mount all API routes on the app
@@ -21,4 +22,5 @@ export const mountRoutes = (app) => {
   app.use('/api/assignments', assignmentsRouter);
   app.use('/api/grades', gradesRouter);
   app.use('/api/attendance', attendanceRouter);
+  app.use('/api/notifications', notificationsRouter);
 };

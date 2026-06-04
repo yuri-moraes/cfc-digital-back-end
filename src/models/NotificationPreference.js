@@ -3,16 +3,10 @@ import { BadRequestError } from '../utils/errors.js';
 
 export class NotificationPreference {
   static async findOrCreate(userId) {
-    const existing = await query(
-      'SELECT id, user_id, minutes_before, whatsapp_enabled, in_app_enabled, created_at, updated_at FROM notification_preferences WHERE user_id = $1',
-      [userId]
-    );
-
-    if (existing.rows.length > 0) return existing.rows[0];
-
     const result = await query(
       `INSERT INTO notification_preferences (user_id)
        VALUES ($1)
+       ON CONFLICT (user_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
        RETURNING id, user_id, minutes_before, whatsapp_enabled, in_app_enabled, created_at, updated_at`,
       [userId]
     );
@@ -23,6 +17,14 @@ export class NotificationPreference {
   static async update(userId, { minutes_before, whatsapp_enabled, in_app_enabled }) {
     if (minutes_before !== undefined && (minutes_before < 1 || minutes_before > 120)) {
       throw new BadRequestError('minutes_before must be between 1 and 120');
+    }
+
+    if (whatsapp_enabled !== undefined && typeof whatsapp_enabled !== 'boolean') {
+      throw new BadRequestError('whatsapp_enabled must be a boolean');
+    }
+
+    if (in_app_enabled !== undefined && typeof in_app_enabled !== 'boolean') {
+      throw new BadRequestError('in_app_enabled must be a boolean');
     }
 
     await NotificationPreference.findOrCreate(userId);
