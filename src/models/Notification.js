@@ -29,6 +29,11 @@ export class Notification {
   }
 
   static async markRead(id, userId) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundError('Notification not found');
+    }
+
     const existing = await query(
       'SELECT id, user_id FROM notifications WHERE id = $1',
       [id]

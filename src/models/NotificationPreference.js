@@ -15,8 +15,8 @@ export class NotificationPreference {
   }
 
   static async update(userId, { minutes_before, whatsapp_enabled, in_app_enabled }) {
-    if (minutes_before !== undefined && (minutes_before < 1 || minutes_before > 120)) {
-      throw new BadRequestError('minutes_before must be between 1 and 120');
+    if (minutes_before !== undefined && (typeof minutes_before !== 'number' || !Number.isInteger(minutes_before) || minutes_before < 1 || minutes_before > 120)) {
+      throw new BadRequestError('minutes_before must be an integer between 1 and 120');
     }
 
     if (whatsapp_enabled !== undefined && typeof whatsapp_enabled !== 'boolean') {
