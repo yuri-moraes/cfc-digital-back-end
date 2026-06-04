@@ -194,8 +194,8 @@ describe('Attendance Routes', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      expect(res.body).toHaveLength(2);
-      expect(res.body[0].status).toBe('pending');
+      expect(res.body.data).toHaveLength(2);
+      expect(res.body.data[0].status).toBe('pending');
     });
 
     it('should list attendance by schedule and date', async () => {
@@ -206,7 +206,7 @@ describe('Attendance Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(res.body).toHaveLength(1);
+      expect(res.body.data).toHaveLength(1);
     });
 
     it('should list attendance by student and class', async () => {
@@ -217,7 +217,7 @@ describe('Attendance Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(res.body).toHaveLength(1);
+      expect(res.body.data).toHaveLength(1);
     });
 
     it('should filter results to own records for student', async () => {
@@ -229,8 +229,8 @@ describe('Attendance Routes', () => {
         .set('Authorization', `Bearer ${studentToken}`)
         .expect(200);
 
-      expect(res.body).toHaveLength(1);
-      expect(res.body[0].student_id).toBe(studentUser.id);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].student_id).toBe(studentUser.id);
     });
 
     it('should return 400 without required query params', async () => {
@@ -242,6 +242,16 @@ describe('Attendance Routes', () => {
 
     it('should require authentication', async () => {
       await request(app).get('/api/attendance?status=pending').expect(401);
+    });
+
+    test('returns paginated shape for scheduleId+date filter', async () => {
+      const response = await request(app)
+        .get(`/api/attendance?scheduleId=${testSchedule.id}&date=2026-06-10`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body).toHaveProperty('meta');
     });
   });
 
@@ -399,7 +409,7 @@ describe('Attendance Routes', () => {
       const fresh = await AttendanceRecord.create(testSchedule.id, student2User.id, '2026-06-04', 'https://blob.vercel.com/fresh.jpg');
 
       // Accessing findPending triggers cleanup
-      const pending = await AttendanceRecord.findPending();
+      const { rows: pending } = await AttendanceRecord.findPending();
 
       // Only fresh record remains
       expect(pending).toHaveLength(1);
@@ -410,7 +420,7 @@ describe('Attendance Routes', () => {
     it('should not delete non-expired pending records', async () => {
       const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
 
-      const pending = await AttendanceRecord.findPending();
+      const { rows: pending } = await AttendanceRecord.findPending();
 
       expect(pending).toHaveLength(1);
       expect(pending[0].id).toBe(record.id);

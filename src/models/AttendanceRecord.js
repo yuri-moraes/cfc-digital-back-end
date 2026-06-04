@@ -52,55 +52,73 @@ export class AttendanceRecord {
     return result.rows[0];
   }
 
-  static async findBySchedule(scheduleId, attendanceDate) {
+  static async findBySchedule(scheduleId, attendanceDate, { limit = 20, offset = 0 } = {}) {
     await AttendanceRecord.deleteExpired();
 
-    const result = await query(
-      `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.status,
-              ar.photo_url, ar.photo_uploaded_at, ar.validated_by, ar.validated_at, ar.created_at,
-              u.name as student_name
-       FROM attendance_records ar
-       JOIN users u ON ar.student_id = u.id
-       WHERE ar.schedule_id = $1 AND ar.attendance_date = $2
-       ORDER BY u.name`,
-      [scheduleId, attendanceDate]
-    );
-
-    return result.rows;
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.status,
+                ar.photo_url, ar.photo_uploaded_at, ar.validated_by, ar.validated_at, ar.created_at,
+                u.name as student_name
+         FROM attendance_records ar
+         JOIN users u ON ar.student_id = u.id
+         WHERE ar.schedule_id = $1 AND ar.attendance_date = $2
+         ORDER BY u.name
+         LIMIT $3 OFFSET $4`,
+        [scheduleId, attendanceDate, limit, offset]
+      ),
+      query(
+        'SELECT COUNT(*) FROM attendance_records WHERE schedule_id = $1 AND attendance_date = $2',
+        [scheduleId, attendanceDate]
+      ),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
-  static async findByStudent(studentId, classId) {
+  static async findByStudent(studentId, classId, { limit = 20, offset = 0 } = {}) {
     await AttendanceRecord.deleteExpired();
 
-    const result = await query(
-      `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.status,
-              ar.photo_url, ar.photo_uploaded_at, ar.validated_by, ar.validated_at, ar.created_at,
-              c.name as class_name
-       FROM attendance_records ar
-       JOIN schedules s ON ar.schedule_id = s.id
-       JOIN classes c ON s.class_id = c.id
-       WHERE ar.student_id = $1 AND s.class_id = $2
-       ORDER BY ar.attendance_date DESC`,
-      [studentId, classId]
-    );
-
-    return result.rows;
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.status,
+                ar.photo_url, ar.photo_uploaded_at, ar.validated_by, ar.validated_at, ar.created_at,
+                c.name as class_name
+         FROM attendance_records ar
+         JOIN schedules s ON ar.schedule_id = s.id
+         JOIN classes c ON s.class_id = c.id
+         WHERE ar.student_id = $1 AND s.class_id = $2
+         ORDER BY ar.attendance_date DESC
+         LIMIT $3 OFFSET $4`,
+        [studentId, classId, limit, offset]
+      ),
+      query(
+        `SELECT COUNT(*) FROM attendance_records ar
+         JOIN schedules s ON ar.schedule_id = s.id
+         WHERE ar.student_id = $1 AND s.class_id = $2`,
+        [studentId, classId]
+      ),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
-  static async findPending() {
+  static async findPending({ limit = 20, offset = 0 } = {}) {
     await AttendanceRecord.deleteExpired();
 
-    const result = await query(
-      `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.status,
-              ar.photo_url, ar.photo_uploaded_at, ar.validated_by, ar.validated_at, ar.created_at,
-              u.name as student_name
-       FROM attendance_records ar
-       JOIN users u ON ar.student_id = u.id
-       WHERE ar.status = 'pending'
-       ORDER BY ar.photo_uploaded_at ASC`
-    );
-
-    return result.rows;
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.status,
+                ar.photo_url, ar.photo_uploaded_at, ar.validated_by, ar.validated_at, ar.created_at,
+                u.name as student_name
+         FROM attendance_records ar
+         JOIN users u ON ar.student_id = u.id
+         WHERE ar.status = 'pending'
+         ORDER BY ar.photo_uploaded_at ASC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      ),
+      query("SELECT COUNT(*) FROM attendance_records WHERE status = 'pending'"),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
   static async validate(id, adminId) {

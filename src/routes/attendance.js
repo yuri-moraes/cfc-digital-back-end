@@ -5,36 +5,43 @@ import { AttendanceRecord } from '../models/AttendanceRecord.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { USER_ROLES } from '../constants.js';
+import { paginate, paginatedResponse } from '../utils/paginate.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// GET /api/attendance?status=<>&classId=<>&studentId=<>&date=<>
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const { status, classId, studentId, date, scheduleId } = req.query;
     const { userId, role } = req.user;
+    const { page, limit, offset } = paginate(req);
 
-    let records;
+    let result;
 
     if (status === 'pending') {
-      records = await AttendanceRecord.findPending();
+      result = await AttendanceRecord.findPending({ limit, offset });
+      if (role === USER_ROLES.STUDENT) {
+        result.rows = result.rows.filter((r) => r.student_id === userId);
+        result.total = result.rows.length;
+      }
     } else if (scheduleId && date) {
-      records = await AttendanceRecord.findBySchedule(scheduleId, date);
+      result = await AttendanceRecord.findBySchedule(scheduleId, date, { limit, offset });
+      if (role === USER_ROLES.STUDENT) {
+        result.rows = result.rows.filter((r) => r.student_id === userId);
+        result.total = result.rows.length;
+      }
     } else if (studentId && classId) {
-      records = await AttendanceRecord.findByStudent(studentId, classId);
+      if (role === USER_ROLES.STUDENT && userId !== studentId) {
+        return res.status(403).json({ error: 'Forbidden', statusCode: 403 });
+      }
+      result = await AttendanceRecord.findByStudent(studentId, classId, { limit, offset });
     } else if (classId) {
       return res.status(400).json({ error: 'studentId is required when filtering by classId', statusCode: 400 });
     } else {
       return res.status(400).json({ error: 'Provide scheduleId+date, studentId+classId, or status=pending', statusCode: 400 });
     }
 
-    // Students see only own records
-    if (role === USER_ROLES.STUDENT) {
-      records = records.filter((r) => r.student_id === userId);
-    }
-
-    res.status(200).json(records);
+    res.status(200).json(paginatedResponse(result.rows, result.total, { page, limit }));
   } catch (error) {
     res.status(error.statusCode || 500).json({ error: error.message, statusCode: error.statusCode || 500 });
   }
