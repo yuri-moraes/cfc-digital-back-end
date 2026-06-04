@@ -20,9 +20,7 @@ export const errorHandler = (err, req, res, next) => {
   if (!err.statusCode || err.statusCode >= 500) {
     try {
       sentryReporter(err);
-    } catch {
-      // Sentry errors must never affect the HTTP response
-    }
+    } catch {}
   }
 
   const statusCode = err.statusCode || 500;
