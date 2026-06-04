@@ -236,7 +236,7 @@ describe('Grades Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(res.body).toHaveLength(2);
+      expect(res.body.data).toHaveLength(2);
     });
 
     it('should list grades by student', async () => {
@@ -247,7 +247,7 @@ describe('Grades Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(res.body).toHaveLength(1);
+      expect(res.body.data).toHaveLength(1);
     });
 
     it('should list grades by class', async () => {
@@ -259,7 +259,7 @@ describe('Grades Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(res.body).toHaveLength(2);
+      expect(res.body.data).toHaveLength(2);
     });
 
     it('should filter grades to own for student', async () => {
@@ -271,8 +271,8 @@ describe('Grades Routes', () => {
         .set('Authorization', `Bearer ${studentToken}`)
         .expect(200);
 
-      expect(res.body).toHaveLength(1);
-      expect(res.body[0].student_id).toBe(studentUser.id);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].student_id).toBe(studentUser.id);
     });
 
     it('should return 400 without any filter', async () => {
@@ -284,6 +284,32 @@ describe('Grades Routes', () => {
 
     it('should require authentication', async () => {
       await request(app).get(`/api/grades?assignmentId=${testAssignment.id}`).expect(401);
+    });
+
+    test('returns paginated shape for assignmentId filter', async () => {
+      await Grade.create(testAssignment.id, studentUser.id, 85, null);
+
+      const response = await request(app)
+        .get(`/api/grades?assignmentId=${testAssignment.id}`)
+        .set('Authorization', `Bearer ${instructorToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.meta.total).toBe(1);
+    });
+
+    test('student only sees own grades via assignmentId filter', async () => {
+      const other = await User.create('other@example.com', 'pass123', 'Other', USER_ROLES.STUDENT);
+      await Grade.create(testAssignment.id, studentUser.id, 80, null);
+      await Grade.create(testAssignment.id, other.id, 90, null);
+
+      const response = await request(app)
+        .get(`/api/grades?assignmentId=${testAssignment.id}`)
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(response.body.data.length).toBe(1);
+      expect(response.body.data[0].student_id).toBe(studentUser.id);
+      expect(response.body.meta.total).toBe(1);
     });
   });
 

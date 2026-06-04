@@ -3,33 +3,33 @@ import { Grade } from '../models/Grade.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { USER_ROLES } from '../constants.js';
+import { paginate, paginatedResponse } from '../utils/paginate.js';
 
 const router = express.Router();
 
-// GET /api/grades?assignmentId=<id>&studentId=<id>&classId=<id>
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const { assignmentId, studentId, classId } = req.query;
     const { userId, role } = req.user;
+    const { page, limit, offset } = paginate(req);
 
-    let grades;
+    const studentFilter = role === USER_ROLES.STUDENT ? userId : null;
 
+    let result;
     if (assignmentId) {
-      grades = await Grade.findByAssignment(assignmentId);
+      result = await Grade.findByAssignment(assignmentId, { limit, offset, studentId: studentFilter });
     } else if (classId) {
-      grades = await Grade.findByClass(classId);
+      result = await Grade.findByClass(classId, { limit, offset, studentId: studentFilter });
     } else if (studentId) {
-      grades = await Grade.findByStudent(studentId);
+      if (role === USER_ROLES.STUDENT && userId !== studentId) {
+        return res.status(403).json({ error: 'Forbidden', statusCode: 403 });
+      }
+      result = await Grade.findByStudent(studentId, { limit, offset });
     } else {
       return res.status(400).json({ error: 'At least one filter (assignmentId, studentId, classId) is required', statusCode: 400 });
     }
 
-    // Students can only see own grades
-    if (role === USER_ROLES.STUDENT) {
-      grades = grades.filter((g) => g.student_id === userId);
-    }
-
-    res.status(200).json(grades);
+    res.status(200).json(paginatedResponse(result.rows, result.total, { page, limit }));
   } catch (error) {
     res.status(error.statusCode || 500).json({ error: error.message, statusCode: error.statusCode || 500 });
   }

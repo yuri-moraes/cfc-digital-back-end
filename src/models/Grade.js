@@ -63,50 +63,71 @@ export class Grade {
     return result.rows[0];
   }
 
-  static async findByAssignment(assignmentId) {
-    const result = await query(
-      `SELECT g.id, g.assignment_id, g.student_id, g.numeric_score, g.letter_grade,
-              g.feedback, g.created_at, g.updated_at, u.name as student_name
-       FROM grades g
-       JOIN users u ON g.student_id = u.id
-       WHERE g.assignment_id = $1
-       ORDER BY u.name`,
-      [assignmentId]
-    );
+  static async findByAssignment(assignmentId, { limit = 20, offset = 0, studentId = null } = {}) {
+    const params = [assignmentId];
+    const studentFilter = studentId ? ` AND g.student_id = $${params.push(studentId)}` : '';
 
-    return result.rows;
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT g.id, g.assignment_id, g.student_id, g.numeric_score, g.letter_grade,
+                g.feedback, g.created_at, g.updated_at, u.name as student_name
+         FROM grades g
+         JOIN users u ON g.student_id = u.id
+         WHERE g.assignment_id = $1${studentFilter}
+         ORDER BY u.name
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset]
+      ),
+      query(
+        `SELECT COUNT(*) FROM grades g WHERE g.assignment_id = $1${studentFilter}`,
+        params
+      ),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
-  static async findByStudent(studentId) {
-    const result = await query(
-      `SELECT g.id, g.assignment_id, g.student_id, g.numeric_score, g.letter_grade,
-              g.feedback, g.created_at, g.updated_at,
-              a.title as assignment_title, a.class_id, c.name as class_name
-       FROM grades g
-       JOIN assignments a ON g.assignment_id = a.id
-       JOIN classes c ON a.class_id = c.id
-       WHERE g.student_id = $1
-       ORDER BY g.created_at DESC`,
-      [studentId]
-    );
-
-    return result.rows;
+  static async findByStudent(studentId, { limit = 20, offset = 0 } = {}) {
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT g.id, g.assignment_id, g.student_id, g.numeric_score, g.letter_grade,
+                g.feedback, g.created_at, g.updated_at,
+                a.title as assignment_title, a.class_id, c.name as class_name
+         FROM grades g
+         JOIN assignments a ON g.assignment_id = a.id
+         JOIN classes c ON a.class_id = c.id
+         WHERE g.student_id = $1
+         ORDER BY g.created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [studentId, limit, offset]
+      ),
+      query('SELECT COUNT(*) FROM grades WHERE student_id = $1', [studentId]),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
-  static async findByClass(classId) {
-    const result = await query(
-      `SELECT g.id, g.assignment_id, g.student_id, g.numeric_score, g.letter_grade,
-              g.feedback, g.created_at, g.updated_at,
-              a.title as assignment_title, u.name as student_name
-       FROM grades g
-       JOIN assignments a ON g.assignment_id = a.id
-       JOIN users u ON g.student_id = u.id
-       WHERE a.class_id = $1
-       ORDER BY a.title, u.name`,
-      [classId]
-    );
+  static async findByClass(classId, { limit = 20, offset = 0, studentId = null } = {}) {
+    const params = [classId];
+    const studentFilter = studentId ? ` AND g.student_id = $${params.push(studentId)}` : '';
 
-    return result.rows;
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT g.id, g.assignment_id, g.student_id, g.numeric_score, g.letter_grade,
+                g.feedback, g.created_at, g.updated_at,
+                a.title as assignment_title, u.name as student_name
+         FROM grades g
+         JOIN assignments a ON g.assignment_id = a.id
+         JOIN users u ON g.student_id = u.id
+         WHERE a.class_id = $1${studentFilter}
+         ORDER BY a.title, u.name
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset]
+      ),
+      query(
+        `SELECT COUNT(*) FROM grades g JOIN assignments a ON g.assignment_id = a.id WHERE a.class_id = $1${studentFilter}`,
+        params
+      ),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
   static async update(id, updates, requestingUserId, requestingUserRole) {
