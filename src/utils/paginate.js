@@ -1,6 +1,6 @@
 export const paginate = (req) => {
-  const rawPage = parseInt(req.query.page);
-  const rawLimit = parseInt(req.query.limit);
+  const rawPage = parseInt(req.query.page, 10);
+  const rawLimit = parseInt(req.query.limit, 10);
   const page = Math.max(1, Number.isNaN(rawPage) ? 1 : rawPage);
   const limit = Math.min(100, Math.max(1, Number.isNaN(rawLimit) ? 20 : rawLimit));
   const offset = (page - 1) * limit;

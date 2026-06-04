@@ -1,4 +1,4 @@
-import { paginate, paginatedResponse } from '../src/middleware/paginate.js';
+import { paginate, paginatedResponse } from '../src/utils/paginate.js';
 
 describe('paginate', () => {
   test('returns defaults when query is empty', () => {
@@ -27,6 +27,10 @@ describe('paginate', () => {
 
   test('computes correct offset for page 2', () => {
     expect(paginate({ query: { page: '2', limit: '5' } }).offset).toBe(5);
+  });
+
+  test('falls back to defaults for non-numeric string input', () => {
+    expect(paginate({ query: { page: 'abc', limit: 'xyz' } })).toEqual({ page: 1, limit: 20, offset: 0 });
   });
 });
 
