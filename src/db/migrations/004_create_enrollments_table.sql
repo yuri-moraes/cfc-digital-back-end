@@ -8,5 +8,5 @@ CREATE TABLE IF NOT EXISTS enrollments (
   UNIQUE(student_id, class_id)
 );
 
-CREATE INDEX idx_enrollments_student_id ON enrollments(student_id);
-CREATE INDEX idx_enrollments_class_id ON enrollments(class_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_student_id ON enrollments(student_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_class_id ON enrollments(class_id);

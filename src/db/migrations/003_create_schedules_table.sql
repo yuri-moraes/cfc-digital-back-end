@@ -9,7 +9,11 @@ CREATE TABLE IF NOT EXISTS schedules (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_schedules_class_id ON schedules(class_id);
+CREATE INDEX IF NOT EXISTS idx_schedules_class_id ON schedules(class_id);
 
 -- Ensure end_time > start_time
-ALTER TABLE schedules ADD CONSTRAINT check_times CHECK (end_time > start_time);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'check_times' AND conrelid = 'schedules'::regclass) THEN
+    ALTER TABLE schedules ADD CONSTRAINT check_times CHECK (end_time > start_time);
+  END IF;
+END $$;

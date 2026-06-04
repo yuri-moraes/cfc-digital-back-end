@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest --testEnvironment=node",
-    "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --testEnvironment=node --watch",
-    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --testEnvironment=node --coverage",
+    "db:migrate": "node -e \"import('./src/db/pool.js').then(({initPool})=>initPool()).then(()=>import('./src/db/init.js')).then(({runMigrations})=>runMigrations()).then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)})\"",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --testEnvironment=node --runInBand",
+    "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --testEnvironment=node --runInBand --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --testEnvironment=node --runInBand --coverage",
     "lint": "echo 'Add eslint later'"
   },
   "keywords": [],
@@ -15,10 +16,12 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@vercel/blob": "^2.4.0",
     "bcrypt": "^6.0.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
     "pg": "^8.21.0"
   },
   "devDependencies": {

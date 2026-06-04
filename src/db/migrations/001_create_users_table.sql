@@ -9,4 +9,4 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_users_email ON users(LOWER(email));
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(LOWER(email));
