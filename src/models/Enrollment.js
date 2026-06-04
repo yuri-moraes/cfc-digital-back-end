@@ -55,6 +55,11 @@ export class Enrollment {
    * @throws {NotFoundError} If enrollment not found
    */
   static async findById(id) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundError('Enrollment not found');
+    }
+
     const result = await query(
       'SELECT id, student_id, class_id, status, enrolled_at FROM enrollments WHERE id = $1',
       [id]
@@ -144,6 +149,11 @@ export class Enrollment {
    * @throws {ForbiddenError} If user not authorized to delete
    */
   static async delete(id, requestingUserId, requestingUserRole) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundError('Enrollment not found');
+    }
+
     // Check if enrollment exists
     const enrollmentResult = await query(
       `SELECT e.id, e.student_id, e.class_id, c.instructor_id
