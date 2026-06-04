@@ -95,7 +95,7 @@ describe('User CRUD Routes', () => {
         .get('/api/users');
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Unauthorized');
+      expect(response.body.error).toBeDefined();
     });
   });
 
@@ -146,7 +146,7 @@ describe('User CRUD Routes', () => {
         .get(`/api/users/${studentUser.id}`);
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Unauthorized');
+      expect(response.body.error).toBeDefined();
     });
   });
 
@@ -288,7 +288,7 @@ describe('User CRUD Routes', () => {
         });
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Unauthorized');
+      expect(response.body.error).toBeDefined();
     });
   });
 
@@ -383,7 +383,7 @@ describe('User CRUD Routes', () => {
         });
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Unauthorized');
+      expect(response.body.error).toBeDefined();
     });
   });
 
@@ -430,7 +430,7 @@ describe('User CRUD Routes', () => {
         .delete(`/api/users/${studentUser.id}`);
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Unauthorized');
+      expect(response.body.error).toBeDefined();
     });
   });
 

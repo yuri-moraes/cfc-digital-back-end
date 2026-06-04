@@ -53,6 +53,11 @@ export class User {
    * @throws {NotFoundError} If user not found
    */
   static async findById(id) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundError('User not found');
+    }
+
     const result = await query(
       'SELECT id, email, name, role, phone_number, created_at, updated_at FROM users WHERE id = $1',
       [id]
@@ -127,6 +132,11 @@ export class User {
       throw new BadRequestError('No valid fields to update');
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundError('User not found');
+    }
+
     // Check if user exists
     const existingUser = await query('SELECT id FROM users WHERE id = $1', [id]);
     if (existingUser.rows.length === 0) {
@@ -159,6 +169,11 @@ export class User {
    * @throws {NotFoundError} If user not found
    */
   static async delete(id) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundError('User not found');
+    }
+
     const result = await query('DELETE FROM users WHERE id = $1', [id]);
 
     if (result.rowCount === 0) {
