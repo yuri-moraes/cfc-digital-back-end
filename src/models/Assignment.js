@@ -36,16 +36,19 @@ export class Assignment {
     return result.rows[0];
   }
 
-  static async findByClassId(classId) {
-    const result = await query(
-      `SELECT id, class_id, title, description, due_date, max_score, created_at, updated_at
-       FROM assignments
-       WHERE class_id = $1
-       ORDER BY created_at DESC`,
-      [classId]
-    );
-
-    return result.rows;
+  static async findByClassId(classId, { limit = 20, offset = 0 } = {}) {
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT id, class_id, title, description, due_date, max_score, created_at, updated_at
+         FROM assignments
+         WHERE class_id = $1
+         ORDER BY created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [classId, limit, offset]
+      ),
+      query('SELECT COUNT(*) FROM assignments WHERE class_id = $1', [classId]),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
   static async update(id, updates, requestingUserId, requestingUserRole) {

@@ -3,6 +3,7 @@ import { Assignment } from '../models/Assignment.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { USER_ROLES } from '../constants.js';
+import { paginate, paginatedResponse } from '../utils/paginate.js';
 
 const router = express.Router();
 
@@ -13,8 +14,9 @@ router.get('/', authMiddleware, async (req, res) => {
     if (!classId) {
       return res.status(400).json({ error: 'classId query parameter is required', statusCode: 400 });
     }
-    const assignments = await Assignment.findByClassId(classId);
-    res.status(200).json(assignments);
+    const { page, limit, offset } = paginate(req);
+    const { rows, total } = await Assignment.findByClassId(classId, { limit, offset });
+    res.status(200).json(paginatedResponse(rows, total, { page, limit }));
   } catch (error) {
     res.status(error.statusCode || 500).json({ error: error.message, statusCode: error.statusCode || 500 });
   }

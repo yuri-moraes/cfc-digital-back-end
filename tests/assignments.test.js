@@ -46,7 +46,7 @@ describe('Assignments Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(res.body).toHaveLength(2);
+      expect(res.body.data).toHaveLength(2);
     });
 
     it('should return empty array when no assignments', async () => {
@@ -55,7 +55,7 @@ describe('Assignments Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(res.body).toEqual([]);
+      expect(res.body.data).toEqual([]);
     });
 
     it('should return 400 when classId not provided', async () => {
@@ -81,7 +81,34 @@ describe('Assignments Routes', () => {
         .set('Authorization', `Bearer ${studentToken}`)
         .expect(200);
 
-      expect(res.body).toHaveLength(1);
+      expect(res.body.data).toHaveLength(1);
+    });
+
+    test('returns paginated shape for classId filter', async () => {
+      await Assignment.create(testClass.id, 'HW1', null, null, 100);
+      await Assignment.create(testClass.id, 'HW2', null, null, 100);
+
+      const response = await request(app)
+        .get(`/api/assignments?classId=${testClass.id}`)
+        .set('Authorization', `Bearer ${instructorToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.meta.total).toBe(2);
+    });
+
+    test('respects limit param', async () => {
+      await Assignment.create(testClass.id, 'HW1', null, null, 100);
+      await Assignment.create(testClass.id, 'HW2', null, null, 100);
+      await Assignment.create(testClass.id, 'HW3', null, null, 100);
+
+      const response = await request(app)
+        .get(`/api/assignments?classId=${testClass.id}&limit=2`)
+        .set('Authorization', `Bearer ${instructorToken}`);
+
+      expect(response.body.data.length).toBe(2);
+      expect(response.body.meta.total).toBe(3);
     });
   });
 
