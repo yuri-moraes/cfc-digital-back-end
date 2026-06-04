@@ -65,33 +65,23 @@ router.get('/:id', authMiddleware, async (req, res) => {
  */
 router.post('/', authMiddleware, requireRole(USER_ROLES.ADMIN), async (req, res) => {
   try {
-    const { email, password, name, role } = req.body;
+    const { email, password, name, role, phone_number } = req.body;
 
-    // Validate all required fields
     validateRequired(email, 'email');
     validateRequired(password, 'password');
     validateRequired(name, 'name');
     validateRequired(role, 'role');
 
-    // Validate email format
     validateEmail(email);
-
-    // Validate password strength
     validatePassword(password);
-
-    // Validate role is valid
     validateRole(role);
 
-    // Create user
-    const user = await User.create(email, password, name, role);
+    const user = await User.create(email, password, name, role, phone_number ?? null);
 
     res.status(201).json(user);
   } catch (error) {
     const statusCode = error.statusCode || 500;
-    res.status(statusCode).json({
-      error: error.message,
-      statusCode,
-    });
+    res.status(statusCode).json({ error: error.message, statusCode });
   }
 });
 

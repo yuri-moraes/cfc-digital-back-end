@@ -19,14 +19,12 @@ export class User {
    * @throws {BadRequestError} If role is invalid
    * @throws {ConflictError} If email already exists
    */
-  static async create(email, password, name, role) {
-    // Validate role
+  static async create(email, password, name, role, phoneNumber = null) {
     const validRoles = Object.values(USER_ROLES);
     if (!validRoles.includes(role)) {
       throw new BadRequestError(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
     }
 
-    // Check for duplicate email (case-insensitive)
     const existingUser = await query(
       'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
       [email]
@@ -36,15 +34,13 @@ export class User {
       throw new ConflictError('Email already exists');
     }
 
-    // Hash password
     const passwordHash = await hashPassword(password);
 
-    // Insert into database
     const result = await query(
-      `INSERT INTO users (email, password_hash, name, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, email, name, role, created_at, updated_at`,
-      [email, passwordHash, name, role]
+      `INSERT INTO users (email, password_hash, name, role, phone_number)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, email, name, role, phone_number, created_at, updated_at`,
+      [email, passwordHash, name, role, phoneNumber]
     );
 
     return result.rows[0];
@@ -58,7 +54,7 @@ export class User {
    */
   static async findById(id) {
     const result = await query(
-      'SELECT id, email, name, role, created_at, updated_at FROM users WHERE id = $1',
+      'SELECT id, email, name, role, phone_number, created_at, updated_at FROM users WHERE id = $1',
       [id]
     );
 
@@ -122,8 +118,7 @@ export class User {
    * @throws {NotFoundError} If user not found
    */
   static async update(id, updates) {
-    // Only allow updating name and email
-    const allowedFields = ['name', 'email'];
+    const allowedFields = ['name', 'email', 'phone_number'];
     const updateFields = Object.keys(updates).filter((key) =>
       allowedFields.includes(key)
     );
@@ -151,7 +146,7 @@ export class User {
     const result = await query(
       `UPDATE users SET ${setClauses}, updated_at = CURRENT_TIMESTAMP
        WHERE id = $${updateFields.length + 1}
-       RETURNING id, email, name, role, created_at, updated_at`,
+       RETURNING id, email, name, role, phone_number, created_at, updated_at`,
       values
     );
 
@@ -178,7 +173,7 @@ export class User {
   static async list({ limit = 20, offset = 0 } = {}) {
     const [dataResult, countResult] = await Promise.all([
       query(
-        'SELECT id, email, name, role, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+        'SELECT id, email, name, role, phone_number, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
         [limit, offset]
       ),
       query('SELECT COUNT(*) FROM users'),

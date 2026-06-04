@@ -433,4 +433,36 @@ describe('User CRUD Routes', () => {
       expect(response.body.error).toBe('Unauthorized');
     });
   });
+
+  describe('phone_number', () => {
+    test('admin creates user with phone_number and it is returned', async () => {
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ email: 'phone@example.com', password: 'Password1!', name: 'Phone User', role: USER_ROLES.STUDENT, phone_number: '+5511999998888' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.phone_number).toBe('+5511999998888');
+    });
+
+    test('admin creates user without phone_number and it is null', async () => {
+      const response = await request(app)
+        .post('/api/users')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ email: 'nophone@example.com', password: 'Password1!', name: 'No Phone', role: USER_ROLES.STUDENT });
+
+      expect(response.status).toBe(201);
+      expect(response.body.phone_number).toBeNull();
+    });
+
+    test('admin updates phone_number via PUT', async () => {
+      const response = await request(app)
+        .put(`/api/users/${studentUser.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ phone_number: '+5511777776666' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.phone_number).toBe('+5511777776666');
+    });
+  });
 });
