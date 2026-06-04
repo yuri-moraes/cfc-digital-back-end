@@ -1,5 +1,6 @@
 // src/index.js
 import express from 'express';
+import cors from 'cors';
 import { config } from './config.js';
 import { initPool } from './db/pool.js';
 import { runMigrations } from './db/init.js';
@@ -14,6 +15,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 export async function createApp() {
   const app = express();
 
+  app.use(cors({ origin: config.cors.origin, credentials: true }));
   app.use(express.json());
 
   app.get('/health', (req, res) => {
