@@ -8,11 +8,11 @@ const reportToSentry = process.env.SENTRY_DSN
     })()
   : Promise.resolve(() => {});
 
-export const errorHandler = async (err, req, res, next) => {
+export const errorHandler = (err, req, res, next) => {
   logger.error({ path: req.path, userId: req.user?.id, err });
 
   if (!err.statusCode || err.statusCode >= 500) {
-    (await reportToSentry)(err);
+    reportToSentry.then((report) => report(err)).catch(() => {});
   }
 
   const statusCode = err.statusCode || 500;
