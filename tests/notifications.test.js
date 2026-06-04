@@ -82,3 +82,113 @@ describe('Notification Preferences', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('Notification List and Read', () => {
+  let app;
+  let student;
+  let otherStudent;
+  let studentToken;
+  let otherToken;
+
+  beforeEach(async () => {
+    app = createTestApp();
+    student = await createTestUser('ns@example.com', 'password123', 'NS Student', USER_ROLES.STUDENT);
+    otherStudent = await createTestUser('other@example.com', 'password123', 'Other', USER_ROLES.STUDENT);
+    studentToken = getAuthToken(student.id, student.email, USER_ROLES.STUDENT);
+    otherToken = getAuthToken(otherStudent.id, otherStudent.email, USER_ROLES.STUDENT);
+  });
+
+  test('GET /notifications returns empty list when no notifications', async () => {
+    const res = await request(app)
+      .get('/api/notifications')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('data');
+    expect(res.body.data).toEqual([]);
+    expect(res.body.meta.total).toBe(0);
+  });
+
+  test('GET /notifications returns own notifications paginated', async () => {
+    const { Notification } = await import('../src/models/Notification.js');
+    await Notification.create(student.id, 'class_reminder', 'Lembrete', 'Sua aula começa em 15 min', null, null);
+    await Notification.create(student.id, 'class_cancelled', 'Cancelada', 'Aula cancelada', null, null);
+
+    const res = await request(app)
+      .get('/api/notifications')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBe(2);
+    expect(res.body.meta.total).toBe(2);
+  });
+
+  test('GET /notifications does not return other users notifications', async () => {
+    const { Notification } = await import('../src/models/Notification.js');
+    await Notification.create(otherStudent.id, 'class_reminder', 'Lembrete', 'Não é seu', null, null);
+
+    const res = await request(app)
+      .get('/api/notifications')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBe(0);
+  });
+
+  test('GET /notifications/unread-count returns correct count', async () => {
+    const { Notification } = await import('../src/models/Notification.js');
+    await Notification.create(student.id, 'class_reminder', 'T1', 'B1', null, null);
+    await Notification.create(student.id, 'class_reminder', 'T2', 'B2', null, null);
+
+    const res = await request(app)
+      .get('/api/notifications/unread-count')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.count).toBe(2);
+  });
+
+  test('PUT /notifications/:id/read marks notification as read', async () => {
+    const { Notification } = await import('../src/models/Notification.js');
+    const notif = await Notification.create(student.id, 'class_reminder', 'T', 'B', null, null);
+
+    const res = await request(app)
+      .put(`/api/notifications/${notif.id}/read`)
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.read_at).not.toBeNull();
+
+    const countRes = await request(app)
+      .get('/api/notifications/unread-count')
+      .set('Authorization', `Bearer ${studentToken}`);
+    expect(countRes.body.count).toBe(0);
+  });
+
+  test('PUT /notifications/:id/read returns 403 for other users notification', async () => {
+    const { Notification } = await import('../src/models/Notification.js');
+    const notif = await Notification.create(otherStudent.id, 'class_reminder', 'T', 'B', null, null);
+
+    const res = await request(app)
+      .put(`/api/notifications/${notif.id}/read`)
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  test('PUT /notifications/read-all marks all as read', async () => {
+    const { Notification } = await import('../src/models/Notification.js');
+    await Notification.create(student.id, 'class_reminder', 'T1', 'B1', null, null);
+    await Notification.create(student.id, 'class_cancelled', 'T2', 'B2', null, null);
+
+    await request(app)
+      .put('/api/notifications/read-all')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    const res = await request(app)
+      .get('/api/notifications/unread-count')
+      .set('Authorization', `Bearer ${studentToken}`);
+    expect(res.body.count).toBe(0);
+  });
+});
+
