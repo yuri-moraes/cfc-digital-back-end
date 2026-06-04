@@ -1801,7 +1801,7 @@ router.post('/send-reminders', async (req, res) => {
       JOIN enrollments e ON e.class_id = c.id
       JOIN user_prefs up ON up.user_id = e.student_id
       WHERE
-        TRIM(s.day_of_week) = TO_CHAR(NOW() AT TIME ZONE 'America/Sao_Paulo', 'Day')
+        TRIM(s.day_of_week) = TRIM(TO_CHAR(NOW() AT TIME ZONE 'America/Sao_Paulo', 'Day'))
         AND ABS(EXTRACT(EPOCH FROM (
           s.start_time - (NOW() AT TIME ZONE 'America/Sao_Paulo')::TIME
         )) / 60 - up.minutes_before) < 1
@@ -1830,7 +1830,7 @@ router.post('/send-reminders', async (req, res) => {
       JOIN classes c ON s.class_id = c.id
       JOIN user_prefs up ON up.user_id = c.instructor_id
       WHERE
-        TRIM(s.day_of_week) = TO_CHAR(NOW() AT TIME ZONE 'America/Sao_Paulo', 'Day')
+        TRIM(s.day_of_week) = TRIM(TO_CHAR(NOW() AT TIME ZONE 'America/Sao_Paulo', 'Day'))
         AND ABS(EXTRACT(EPOCH FROM (
           s.start_time - (NOW() AT TIME ZONE 'America/Sao_Paulo')::TIME
         )) / 60 - up.minutes_before) < 1
