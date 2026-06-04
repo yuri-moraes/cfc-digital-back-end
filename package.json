@@ -9,6 +9,7 @@
     "test": "node --experimental-vm-modules node_modules/.bin/jest --testEnvironment=node --runInBand",
     "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --testEnvironment=node --runInBand --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --testEnvironment=node --runInBand --coverage",
+    "db:seed": "node src/db/seed.js",
     "lint": "echo 'Add eslint later'"
   },
   "keywords": [],
