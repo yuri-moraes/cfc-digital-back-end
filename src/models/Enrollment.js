@@ -72,19 +72,22 @@ export class Enrollment {
    * @param {string} studentId - Student ID
    * @returns {Promise<Array>} Enrollments with class and instructor info
    */
-  static async listByStudent(studentId) {
-    const result = await query(
-      `SELECT e.id, e.student_id, e.class_id, e.status, e.enrolled_at,
-              c.name as class_name, c.description, u.name as instructor_name
-       FROM enrollments e
-       JOIN classes c ON e.class_id = c.id
-       LEFT JOIN users u ON c.instructor_id = u.id
-       WHERE e.student_id = $1
-       ORDER BY e.enrolled_at DESC`,
-      [studentId]
-    );
-
-    return result.rows;
+  static async listByStudent(studentId, { limit = 20, offset = 0 } = {}) {
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT e.id, e.student_id, e.class_id, e.status, e.enrolled_at,
+                c.name as class_name, c.description, u.name as instructor_name
+         FROM enrollments e
+         JOIN classes c ON e.class_id = c.id
+         LEFT JOIN users u ON c.instructor_id = u.id
+         WHERE e.student_id = $1
+         ORDER BY e.enrolled_at DESC
+         LIMIT $2 OFFSET $3`,
+        [studentId, limit, offset]
+      ),
+      query('SELECT COUNT(*) FROM enrollments WHERE student_id = $1', [studentId]),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
   /**
@@ -92,37 +95,44 @@ export class Enrollment {
    * @param {string} classId - Class ID
    * @returns {Promise<Array>} Enrollments with student info
    */
-  static async listByClass(classId) {
-    const result = await query(
-      `SELECT e.id, e.student_id, e.class_id, e.status, e.enrolled_at,
-              u.name as student_name, u.email as student_email
-       FROM enrollments e
-       JOIN users u ON e.student_id = u.id
-       WHERE e.class_id = $1
-       ORDER BY e.enrolled_at DESC`,
-      [classId]
-    );
-
-    return result.rows;
+  static async listByClass(classId, { limit = 20, offset = 0 } = {}) {
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT e.id, e.student_id, e.class_id, e.status, e.enrolled_at,
+                u.name as student_name, u.email as student_email
+         FROM enrollments e
+         JOIN users u ON e.student_id = u.id
+         WHERE e.class_id = $1
+         ORDER BY e.enrolled_at DESC
+         LIMIT $2 OFFSET $3`,
+        [classId, limit, offset]
+      ),
+      query('SELECT COUNT(*) FROM enrollments WHERE class_id = $1', [classId]),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
   /**
    * List all enrollments (admin only)
    * @returns {Promise<Array>} All enrollments with class and student info
    */
-  static async listAll() {
-    const result = await query(
-      `SELECT e.id, e.student_id, e.class_id, e.status, e.enrolled_at,
-              c.name as class_name, u.name as student_name, u.email as student_email,
-              i.name as instructor_name
-       FROM enrollments e
-       JOIN classes c ON e.class_id = c.id
-       JOIN users u ON e.student_id = u.id
-       LEFT JOIN users i ON c.instructor_id = i.id
-       ORDER BY e.enrolled_at DESC`
-    );
-
-    return result.rows;
+  static async listAll({ limit = 20, offset = 0 } = {}) {
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT e.id, e.student_id, e.class_id, e.status, e.enrolled_at,
+                c.name as class_name, u.name as student_name, u.email as student_email,
+                i.name as instructor_name
+         FROM enrollments e
+         JOIN classes c ON e.class_id = c.id
+         JOIN users u ON e.student_id = u.id
+         LEFT JOIN users i ON c.instructor_id = i.id
+         ORDER BY e.enrolled_at DESC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      ),
+      query('SELECT COUNT(*) FROM enrollments'),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
   /**

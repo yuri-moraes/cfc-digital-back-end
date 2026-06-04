@@ -75,15 +75,19 @@ export class Class {
    * List all classes
    * @returns {Promise<Array>} All classes with instructor_name, ordered by created_at DESC
    */
-  static async list() {
-    const result = await query(
-      `SELECT c.id, c.name, c.description, c.instructor_id, c.created_at, c.updated_at, u.name as instructor_name
-       FROM classes c
-       LEFT JOIN users u ON c.instructor_id = u.id
-       ORDER BY c.created_at DESC`
-    );
-
-    return result.rows;
+  static async list({ limit = 20, offset = 0 } = {}) {
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT c.id, c.name, c.description, c.instructor_id, c.created_at, c.updated_at, u.name as instructor_name
+         FROM classes c
+         LEFT JOIN users u ON c.instructor_id = u.id
+         ORDER BY c.created_at DESC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      ),
+      query('SELECT COUNT(*) FROM classes'),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
   /**
@@ -91,17 +95,20 @@ export class Class {
    * @param {string} instructorId - Instructor ID
    * @returns {Promise<Array>} Classes for instructor, ordered by created_at DESC
    */
-  static async listByInstructor(instructorId) {
-    const result = await query(
-      `SELECT c.id, c.name, c.description, c.instructor_id, c.created_at, c.updated_at, u.name as instructor_name
-       FROM classes c
-       LEFT JOIN users u ON c.instructor_id = u.id
-       WHERE c.instructor_id = $1
-       ORDER BY c.created_at DESC`,
-      [instructorId]
-    );
-
-    return result.rows;
+  static async listByInstructor(instructorId, { limit = 20, offset = 0 } = {}) {
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT c.id, c.name, c.description, c.instructor_id, c.created_at, c.updated_at, u.name as instructor_name
+         FROM classes c
+         LEFT JOIN users u ON c.instructor_id = u.id
+         WHERE c.instructor_id = $1
+         ORDER BY c.created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [instructorId, limit, offset]
+      ),
+      query('SELECT COUNT(*) FROM classes WHERE instructor_id = $1', [instructorId]),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
   /**

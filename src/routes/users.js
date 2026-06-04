@@ -5,6 +5,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { validateEmail, validatePassword, validateRequired, validateRole } from '../utils/validators.js';
 import { USER_ROLES } from '../constants.js';
+import { paginate, paginatedResponse } from '../utils/paginate.js';
 
 const router = express.Router();
 
@@ -15,14 +16,12 @@ const router = express.Router();
  */
 router.get('/', authMiddleware, requireRole(USER_ROLES.ADMIN), async (req, res) => {
   try {
-    const users = await User.list();
-    res.status(200).json(users);
+    const { page, limit, offset } = paginate(req);
+    const { rows, total } = await User.list({ limit, offset });
+    res.status(200).json(paginatedResponse(rows, total, { page, limit }));
   } catch (error) {
     const statusCode = error.statusCode || 500;
-    res.status(statusCode).json({
-      error: error.message,
-      statusCode,
-    });
+    res.status(statusCode).json({ error: error.message, statusCode });
   }
 });
 

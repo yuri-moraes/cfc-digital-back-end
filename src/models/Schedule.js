@@ -101,16 +101,19 @@ export class Schedule {
    * @param {string} classId - Class ID
    * @returns {Promise<Array>} Schedules ordered by day_of_week, start_time
    */
-  static async listByClass(classId) {
-    const result = await query(
-      `SELECT id, class_id, day_of_week, start_time, end_time, created_at, updated_at
-       FROM schedules
-       WHERE class_id = $1
-       ORDER BY day_of_week, start_time`,
-      [classId]
-    );
-
-    return result.rows;
+  static async listByClass(classId, { limit = 20, offset = 0 } = {}) {
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT id, class_id, day_of_week, start_time, end_time, created_at, updated_at
+         FROM schedules
+         WHERE class_id = $1
+         ORDER BY day_of_week, start_time
+         LIMIT $2 OFFSET $3`,
+        [classId, limit, offset]
+      ),
+      query('SELECT COUNT(*) FROM schedules WHERE class_id = $1', [classId]),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
   /**
@@ -118,17 +121,23 @@ export class Schedule {
    * @param {string} instructorId - Instructor ID
    * @returns {Promise<Array>} Schedules for all classes taught by instructor
    */
-  static async listByInstructor(instructorId) {
-    const result = await query(
-      `SELECT s.id, s.class_id, s.day_of_week, s.start_time, s.end_time, s.created_at, s.updated_at
-       FROM schedules s
-       JOIN classes c ON s.class_id = c.id
-       WHERE c.instructor_id = $1
-       ORDER BY s.day_of_week, s.start_time`,
-      [instructorId]
-    );
-
-    return result.rows;
+  static async listByInstructor(instructorId, { limit = 20, offset = 0 } = {}) {
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        `SELECT s.id, s.class_id, s.day_of_week, s.start_time, s.end_time, s.created_at, s.updated_at
+         FROM schedules s
+         JOIN classes c ON s.class_id = c.id
+         WHERE c.instructor_id = $1
+         ORDER BY s.day_of_week, s.start_time
+         LIMIT $2 OFFSET $3`,
+        [instructorId, limit, offset]
+      ),
+      query(
+        'SELECT COUNT(*) FROM schedules s JOIN classes c ON s.class_id = c.id WHERE c.instructor_id = $1',
+        [instructorId]
+      ),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 
   /**

@@ -1,23 +1,31 @@
-// src/middleware/errorHandler.js
+import { logger } from '../utils/logger.js';
 
-/**
- * Global error handler middleware
- * Catches all errors thrown in route handlers and sends appropriate responses
- * Must be the last middleware registered
- */
+let sentryReporter = () => {};
+
+if (process.env.SENTRY_DSN) {
+  (async () => {
+    try {
+      const { default: Sentry } = await import('@sentry/node');
+      Sentry.init({ dsn: process.env.SENTRY_DSN });
+      sentryReporter = (err) => Sentry.captureException(err);
+    } catch (err) {
+      logger.warn({ err }, 'Sentry init failed');
+    }
+  })();
+}
+
 export const errorHandler = (err, req, res, next) => {
-  // Log error to console for debugging
-  console.error('Error:', err);
+  logger.error({ path: req.path, userId: req.user?.id, err }, 'Unhandled error');
 
-  // If error has statusCode, use it; otherwise default to 500
+  if (!err.statusCode || err.statusCode >= 500) {
+    try {
+      sentryReporter(err);
+    } catch {}
+  }
+
   const statusCode = err.statusCode || 500;
+  const errorResponse = { error: err.message || 'Internal server error' };
 
-  // Build error response
-  const errorResponse = {
-    error: err.message || 'Internal server error',
-  };
-
-  // Include details if available
   if (err.details) {
     errorResponse.details = err.details;
   }
@@ -25,12 +33,6 @@ export const errorHandler = (err, req, res, next) => {
   res.status(statusCode).json(errorResponse);
 };
 
-/**
- * 404 Not Found handler
- * Catches requests to routes that don't exist
- */
 export const notFoundHandler = (req, res) => {
-  res.status(404).json({
-    error: 'Not found',
-  });
+  res.status(404).json({ error: 'Not found' });
 };

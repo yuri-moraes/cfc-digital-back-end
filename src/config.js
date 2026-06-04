@@ -11,6 +11,9 @@ export const config = {
     secret: process.env.JWT_SECRET || 'dev-secret-key',
     expiresIn: '24h',
   },
+  cors: {
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  },
   node_env: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 3001,
 };

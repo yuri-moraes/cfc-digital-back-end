@@ -8,4 +8,4 @@ CREATE TABLE IF NOT EXISTS classes (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_classes_instructor_id ON classes(instructor_id);
+CREATE INDEX IF NOT EXISTS idx_classes_instructor_id ON classes(instructor_id);

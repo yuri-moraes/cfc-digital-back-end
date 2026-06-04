@@ -4,6 +4,7 @@ import { Schedule } from '../models/Schedule.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { USER_ROLES } from '../constants.js';
+import { paginate, paginatedResponse } from '../utils/paginate.js';
 
 const router = express.Router();
 
@@ -16,25 +17,21 @@ const router = express.Router();
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const { classId, instructorId } = req.query;
+    const { page, limit, offset } = paginate(req);
 
-    let schedules;
-
+    let result;
     if (classId) {
-      schedules = await Schedule.listByClass(classId);
+      result = await Schedule.listByClass(classId, { limit, offset });
     } else if (instructorId) {
-      schedules = await Schedule.listByInstructor(instructorId);
+      result = await Schedule.listByInstructor(instructorId, { limit, offset });
     } else {
-      // Return empty if no query params
-      schedules = [];
+      result = { rows: [], total: 0 };
     }
 
-    res.status(200).json(schedules);
+    res.status(200).json(paginatedResponse(result.rows, result.total, { page, limit }));
   } catch (error) {
     const statusCode = error.statusCode || 500;
-    res.status(statusCode).json({
-      error: error.message,
-      statusCode,
-    });
+    res.status(statusCode).json({ error: error.message, statusCode });
   }
 });
 

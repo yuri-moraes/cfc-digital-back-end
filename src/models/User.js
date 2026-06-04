@@ -175,11 +175,14 @@ export class User {
    * List all users
    * @returns {Promise<Array>} All users without password_hash, ordered by created_at DESC
    */
-  static async list() {
-    const result = await query(
-      'SELECT id, email, name, role, created_at, updated_at FROM users ORDER BY created_at DESC'
-    );
-
-    return result.rows;
+  static async list({ limit = 20, offset = 0 } = {}) {
+    const [dataResult, countResult] = await Promise.all([
+      query(
+        'SELECT id, email, name, role, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+        [limit, offset]
+      ),
+      query('SELECT COUNT(*) FROM users'),
+    ]);
+    return { rows: dataResult.rows, total: parseInt(countResult.rows[0].count, 10) };
   }
 }

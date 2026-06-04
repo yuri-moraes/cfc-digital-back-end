@@ -27,6 +27,9 @@ beforeAll(async () => {
 afterEach(async () => {
   try {
     // Delete data from all tables in reverse order of foreign key dependencies
+    await query('DELETE FROM attendance_records');
+    await query('DELETE FROM grades');
+    await query('DELETE FROM assignments');
     await query('DELETE FROM enrollments');
     await query('DELETE FROM schedules');
     await query('DELETE FROM classes');

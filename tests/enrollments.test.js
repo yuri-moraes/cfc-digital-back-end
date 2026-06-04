@@ -205,10 +205,10 @@ describe('Enrollment Routes', () => {
         .set('Authorization', `Bearer ${studentToken}`)
         .expect(200);
 
-      expect(response.body).toHaveLength(2);
-      expect(response.body[0].student_id).toBe(studentUser.id);
-      expect(response.body[0].class_name).toBeDefined();
-      expect(response.body[0].instructor_name).toBeDefined();
+      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data[0].student_id).toBe(studentUser.id);
+      expect(response.body.data[0].class_name).toBeDefined();
+      expect(response.body.data[0].instructor_name).toBeDefined();
     });
 
     it('should reject viewing other students enrollments as student', async () => {
@@ -232,8 +232,8 @@ describe('Enrollment Routes', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      expect(response.body).toHaveLength(1);
-      expect(response.body[0].student_id).toBe(studentUser.id);
+      expect(response.body.data).toHaveLength(1);
+      expect(response.body.data[0].student_id).toBe(studentUser.id);
     });
 
     it('should return empty list when student has no enrollments', async () => {
@@ -242,7 +242,7 @@ describe('Enrollment Routes', () => {
         .set('Authorization', `Bearer ${studentToken}`)
         .expect(200);
 
-      expect(response.body).toEqual([]);
+      expect(response.body.data).toEqual([]);
     });
 
     it('should require authentication', async () => {
@@ -250,6 +250,19 @@ describe('Enrollment Routes', () => {
         .get(`/api/enrollments?studentId=${studentUser.id}`);
 
       expect(response.status).toBe(401);
+    });
+
+    test('returns paginated shape for studentId filter', async () => {
+      await Enrollment.create(studentUser.id, testClass.id);
+
+      const response = await request(app)
+        .get(`/api/enrollments?studentId=${studentUser.id}`)
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.meta.total).toBe(1);
     });
   });
 
@@ -264,10 +277,10 @@ describe('Enrollment Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(response.body).toHaveLength(2);
-      expect(response.body[0].class_id).toBe(testClass.id);
-      expect(response.body[0].student_name).toBeDefined();
-      expect(response.body[0].student_email).toBeDefined();
+      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data[0].class_id).toBe(testClass.id);
+      expect(response.body.data[0].student_name).toBeDefined();
+      expect(response.body.data[0].student_email).toBeDefined();
     });
 
     it('should return empty list when no enrollments', async () => {
@@ -276,7 +289,7 @@ describe('Enrollment Routes', () => {
         .set('Authorization', `Bearer ${instructorToken}`)
         .expect(200);
 
-      expect(response.body).toEqual([]);
+      expect(response.body.data).toEqual([]);
     });
   });
 
@@ -291,10 +304,10 @@ describe('Enrollment Routes', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      expect(response.body).toHaveLength(2);
-      expect(response.body[0].class_name).toBeDefined();
-      expect(response.body[0].student_name).toBeDefined();
-      expect(response.body[0].instructor_name).toBeDefined();
+      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data[0].class_name).toBeDefined();
+      expect(response.body.data[0].student_name).toBeDefined();
+      expect(response.body.data[0].instructor_name).toBeDefined();
     });
 
     it('should reject non-admin viewing all enrollments', async () => {
