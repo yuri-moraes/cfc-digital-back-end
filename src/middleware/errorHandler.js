@@ -9,7 +9,7 @@ const reportToSentry = process.env.SENTRY_DSN
   : Promise.resolve(() => {});
 
 export const errorHandler = (err, req, res, next) => {
-  logger.error({ path: req.path, userId: req.user?.id, err });
+  logger.error({ path: req.path, userId: req.user?.id, err }, 'Unhandled error');
 
   if (!err.statusCode || err.statusCode >= 500) {
     reportToSentry.then((report) => report(err)).catch(() => {});
