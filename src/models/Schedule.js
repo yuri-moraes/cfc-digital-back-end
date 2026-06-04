@@ -82,6 +82,11 @@ export class Schedule {
    * @throws {NotFoundError} If schedule not found
    */
   static async findById(id) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundError('Schedule not found');
+    }
+
     const result = await query(
       `SELECT id, class_id, day_of_week, start_time, end_time, created_at, updated_at
        FROM schedules
@@ -152,6 +157,11 @@ export class Schedule {
    * @throws {BadRequestError} If validation fails
    */
   static async update(id, updates, requestingUserId, requestingUserRole) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundError('Schedule not found');
+    }
+
     // Check if schedule exists and get the class instructor
     const scheduleResult = await query(
       `SELECT s.id, c.instructor_id
@@ -230,6 +240,11 @@ export class Schedule {
    * @throws {ForbiddenError} If user not authorized to delete
    */
   static async delete(id, requestingUserId, requestingUserRole) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundError('Schedule not found');
+    }
+
     // Check if schedule exists and get the class instructor
     const scheduleResult = await query(
       `SELECT s.id, c.instructor_id
