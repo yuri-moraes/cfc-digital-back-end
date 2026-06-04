@@ -6,6 +6,7 @@ import { runMigrations } from './db/init.js';
 import { mountRoutes } from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { authLimiter, apiLimiter } from './middleware/rateLimiter.js';
 import { logger } from './utils/logger.js';
 
 export async function createApp() {
@@ -14,6 +15,8 @@ export async function createApp() {
   app.use(cors({ origin: config.cors.origin, credentials: true }));
   app.use(express.json());
   app.use(requestLogger);
+  app.use('/api/auth/login', authLimiter);
+  app.use('/api', apiLimiter);
 
   app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
