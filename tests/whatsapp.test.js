@@ -5,6 +5,7 @@ import { logger } from '../src/utils/logger.js';
 describe('sendWhatsApp', () => {
   let originalEnv;
   let loggerWarnSpy;
+  let fetchSpy;
 
   beforeAll(() => {
     originalEnv = { ...process.env };
@@ -13,7 +14,18 @@ describe('sendWhatsApp', () => {
   });
 
   afterEach(() => {
-    process.env = { ...originalEnv };
+    // Restore env values safely without reassigning process.env reference
+    for (const key in process.env) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (fetchSpy) {
+      fetchSpy.mockRestore();
+      fetchSpy = null;
+    }
     jest.clearAllMocks();
   });
 
@@ -23,12 +35,11 @@ describe('sendWhatsApp', () => {
 
   test('should return immediately (no-op) if ZAPI_INSTANCE_ID is unset', async () => {
     delete process.env.ZAPI_INSTANCE_ID;
-    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation(() => {});
+    fetchSpy = jest.spyOn(global, 'fetch').mockImplementation(() => {});
 
     await sendWhatsApp('5511999999999', 'Hello world');
 
     expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
   });
 
   test('should call fetch when ZAPI_INSTANCE_ID is set', async () => {
@@ -37,7 +48,7 @@ describe('sendWhatsApp', () => {
     process.env.ZAPI_TOKEN = 'token-abc';
 
     const mockResponse = { ok: true };
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(mockResponse);
+    fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(mockResponse);
 
     await sendWhatsApp('5511999999999', 'Hello world');
 
@@ -47,9 +58,9 @@ describe('sendWhatsApp', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: '5511999999999', message: 'Hello world' }),
+        signal: expect.any(Object),
       }
     );
-    fetchSpy.mockRestore();
   });
 
   test('should log warning if response is not ok', async () => {
@@ -58,7 +69,7 @@ describe('sendWhatsApp', () => {
     process.env.ZAPI_TOKEN = 'token-abc';
 
     const mockResponse = { ok: false, status: 400 };
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(mockResponse);
+    fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(mockResponse);
 
     await sendWhatsApp('5511999999999', 'Hello world');
 
@@ -66,7 +77,6 @@ describe('sendWhatsApp', () => {
       { phone: '5511999999999', status: 400 },
       'WhatsApp send failed'
     );
-    fetchSpy.mockRestore();
   });
 
   test('should log error if fetch throws', async () => {
@@ -75,7 +85,7 @@ describe('sendWhatsApp', () => {
     process.env.ZAPI_TOKEN = 'token-abc';
 
     const error = new Error('Network failure');
-    const fetchSpy = jest.spyOn(global, 'fetch').mockRejectedValue(error);
+    fetchSpy = jest.spyOn(global, 'fetch').mockRejectedValue(error);
 
     await sendWhatsApp('5511999999999', 'Hello world');
 
@@ -83,6 +93,5 @@ describe('sendWhatsApp', () => {
       { phone: '5511999999999', err: error },
       'WhatsApp send error'
     );
-    fetchSpy.mockRestore();
   });
 });
