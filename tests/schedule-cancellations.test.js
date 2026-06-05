@@ -136,4 +136,54 @@ describe('Schedule Cancellations', () => {
       .set('Authorization', `Bearer ${studentToken}`);
     expect(listRes.body.length).toBe(0);
   });
+
+  test('DELETE /:id/cancel/:date checks ownership/admin permission correctly', async () => {
+    await request(app)
+      .post(`/api/schedules/${schedule.id}/cancel`)
+      .set('Authorization', `Bearer ${instructorToken}`)
+      .send({ date: '2026-06-10', reason: 'Test' });
+
+    // Student cannot delete cancellation
+    const studentRes = await request(app)
+      .delete(`/api/schedules/${schedule.id}/cancel/2026-06-10`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    expect(studentRes.status).toBe(403);
+
+    // Another instructor cannot delete cancellation
+    const otherInstructor = await createTestUser('other-instructor@example.com', 'password123', 'Other', USER_ROLES.INSTRUCTOR);
+    const otherInstructorToken = getAuthToken(otherInstructor.id, otherInstructor.email, USER_ROLES.INSTRUCTOR);
+    const otherRes = await request(app)
+      .delete(`/api/schedules/${schedule.id}/cancel/2026-06-10`)
+      .set('Authorization', `Bearer ${otherInstructorToken}`);
+    expect(otherRes.status).toBe(403);
+
+    // Admin can delete cancellation
+    const adminRes = await request(app)
+      .delete(`/api/schedules/${schedule.id}/cancel/2026-06-10`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(adminRes.status).toBe(200);
+  });
+
+  test('UUID validation prevents 500 error crashes on cancel routes', async () => {
+    const badUuid = 'not-a-valid-uuid';
+
+    // GET /:id/cancellations with bad UUID
+    const getRes = await request(app)
+      .get(`/api/schedules/${badUuid}/cancellations`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    expect(getRes.status).toBe(404);
+
+    // POST /:id/cancel with bad UUID
+    const postRes = await request(app)
+      .post(`/api/schedules/${badUuid}/cancel`)
+      .set('Authorization', `Bearer ${instructorToken}`)
+      .send({ date: '2026-06-10', reason: 'Test' });
+    expect(postRes.status).toBe(404);
+
+    // DELETE /:id/cancel/:date with bad UUID
+    const deleteRes = await request(app)
+      .delete(`/api/schedules/${badUuid}/cancel/2026-06-10`)
+      .set('Authorization', `Bearer ${instructorToken}`);
+    expect(deleteRes.status).toBe(404);
+  });
 });
