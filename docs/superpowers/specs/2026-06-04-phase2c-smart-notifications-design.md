@@ -68,6 +68,25 @@ ALTER TABLE users ADD COLUMN phone_number VARCHAR(20);
 
 Phone numbers stored in E.164 format (e.g., `+5511999998888`). Nullable — WhatsApp is opt-in.
 
+### User Model & Route Changes (Migration 008 companion)
+
+`User.create()` gains an optional `phoneNumber` parameter:
+
+```javascript
+static async create(email, password, name, role, phoneNumber = null)
+// INSERT includes phone_number; all SELECT queries return phone_number
+```
+
+`POST /api/users` (admin) accepts optional `phone_number` in the request body:
+
+```json
+{ "email": "...", "password": "...", "name": "...", "role": "student", "phone_number": "+5511999998888" }
+```
+
+`PUT /api/users/:id` already accepts free-form `updates` — no change needed to the route, but the model's `update()` must allow `phone_number` as a valid field.
+
+**No format validation** on `phone_number` in this phase — it is stored as-is. The E.164 format (`+5511999998888`) is a convention, not enforced server-side.
+
 ### Migration 009 — create_notification_preferences
 
 ```sql
@@ -254,7 +273,7 @@ JOIN classes c ON s.class_id = c.id
 JOIN enrollments e ON e.class_id = c.id
 JOIN user_prefs up ON up.user_id = e.student_id
 WHERE
-  TRIM(s.day_of_week) = TO_CHAR(NOW() AT TIME ZONE 'America/Sao_Paulo', 'Day')
+  TRIM(s.day_of_week) = TRIM(TO_CHAR(NOW() AT TIME ZONE 'America/Sao_Paulo', 'Day'))
   AND ABS(EXTRACT(EPOCH FROM (
     s.start_time - (NOW() AT TIME ZONE 'America/Sao_Paulo')::TIME
   )) / 60 - up.minutes_before) < 1
@@ -283,7 +302,7 @@ FROM schedules s
 JOIN classes c ON s.class_id = c.id
 JOIN user_prefs up ON up.user_id = c.instructor_id
 WHERE
-  TRIM(s.day_of_week) = TO_CHAR(NOW() AT TIME ZONE 'America/Sao_Paulo', 'Day')
+  TRIM(s.day_of_week) = TRIM(TO_CHAR(NOW() AT TIME ZONE 'America/Sao_Paulo', 'Day'))
   AND ABS(EXTRACT(EPOCH FROM (
     s.start_time - (NOW() AT TIME ZONE 'America/Sao_Paulo')::TIME
   )) / 60 - up.minutes_before) < 1
@@ -454,7 +473,8 @@ tests/cron.test.js
 **Modified files:**
 - `src/routes/schedules.js` — add cancel + absence routes
 - `src/routes/index.js` — mount notifications and cron routers
-- `src/routes/users.js` — allow `phone_number` in PUT `/users/:id`
+- `src/routes/users.js` — allow `phone_number` in POST `/users` (admin creates user) and PUT `/users/:id`
+- `src/models/User.js` — add optional `phoneNumber` param to `create()`, include `phone_number` in SELECT columns
 - `vercel.json` — add cron schedule
 - `.env.example` — add `CRON_SECRET`, `ZAPI_INSTANCE_ID`, `ZAPI_TOKEN`, `ZAPI_BASE_URL`
 
@@ -467,6 +487,11 @@ tests/cron.test.js
 In tests, `ZAPI_INSTANCE_ID` is not set → `sendWhatsApp()` returns early. No real HTTP calls in tests.
 
 ### Test files (~90 total new tests)
+
+**users.test.js** (additions to existing file, ~3 tests):
+- Admin can create user with `phone_number` → returned in response
+- Admin can create user without `phone_number` → `phone_number` is null
+- Admin can update user's `phone_number` via PUT `/users/:id`
 
 **notifications.test.js** (~25 tests):
 - List notifications (paginated, own only)

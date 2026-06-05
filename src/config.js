@@ -5,7 +5,9 @@ dotenv.config({ path: '.env.local' });
 
 export const config = {
   database: {
-    url: process.env.DATABASE_URL || 'postgresql://localhost/cfc_digital_dev',
+    get url() {
+      return process.env.DATABASE_URL || 'postgresql://localhost/cfc_digital_dev';
+    },
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'dev-secret-key',
