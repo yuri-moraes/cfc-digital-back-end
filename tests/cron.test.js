@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import { createTestUser, getAuthToken } from './helpers.js';
+import { createTestUser } from './helpers.js';
 import cronRouter from '../src/routes/cron.js';
 import { Class } from '../src/models/Class.js';
 import { Schedule } from '../src/models/Schedule.js';

@@ -32,7 +32,7 @@ router.post('/send-reminders', async (req, res) => {
         up.whatsapp_enabled, up.in_app_enabled,
         s.id AS schedule_id, s.start_time,
         c.name AS class_name,
-        CURRENT_DATE AS class_date,
+        (NOW() AT TIME ZONE 'America/Sao_Paulo')::DATE AS class_date,
         up.minutes_before
       FROM schedules s
       JOIN classes c ON s.class_id = c.id
@@ -45,13 +45,14 @@ router.post('/send-reminders', async (req, res) => {
         )) / 60 - up.minutes_before) < 1
         AND NOT EXISTS (
           SELECT 1 FROM schedule_cancellations sc
-          WHERE sc.schedule_id = s.id AND sc.cancelled_date = CURRENT_DATE
+          WHERE sc.schedule_id = s.id
+            AND sc.cancelled_date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::DATE
         )
         AND NOT EXISTS (
           SELECT 1 FROM notifications n
           WHERE n.user_id = up.user_id
             AND n.schedule_id = s.id
-            AND n.class_date = CURRENT_DATE
+            AND n.class_date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::DATE
             AND n.type = 'class_reminder'
         )
 
@@ -62,7 +63,7 @@ router.post('/send-reminders', async (req, res) => {
         up.whatsapp_enabled, up.in_app_enabled,
         s.id, s.start_time,
         c.name,
-        CURRENT_DATE,
+        (NOW() AT TIME ZONE 'America/Sao_Paulo')::DATE,
         up.minutes_before
       FROM schedules s
       JOIN classes c ON s.class_id = c.id
@@ -74,13 +75,14 @@ router.post('/send-reminders', async (req, res) => {
         )) / 60 - up.minutes_before) < 1
         AND NOT EXISTS (
           SELECT 1 FROM schedule_cancellations sc
-          WHERE sc.schedule_id = s.id AND sc.cancelled_date = CURRENT_DATE
+          WHERE sc.schedule_id = s.id
+            AND sc.cancelled_date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::DATE
         )
         AND NOT EXISTS (
           SELECT 1 FROM notifications n
           WHERE n.user_id = up.user_id
             AND n.schedule_id = s.id
-            AND n.class_date = CURRENT_DATE
+            AND n.class_date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::DATE
             AND n.type = 'class_reminder'
         )
     `);
