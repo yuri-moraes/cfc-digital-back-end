@@ -95,7 +95,10 @@ describe('Cron: send-reminders', () => {
       .set('Authorization', `Bearer ${CRON_SECRET}`);
 
     expect(res.body.sent).toBe(0);
-    expect(res.body.skipped).toBeGreaterThanOrEqual(1);
+    expect(res.body.errors).toBe(0);
+
+    const notifs = await Notification.findByUser(student.id);
+    expect(notifs.total).toBe(1);
   });
 
   test('skips cancelled class', async () => {
