@@ -3,5 +3,11 @@
   "env": {
     "DATABASE_URL": "@database_url",
     "JWT_SECRET": "@jwt_secret"
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/send-reminders",
+      "schedule": "* * * * *"
+    }
+  ]
 }

@@ -8,11 +8,8 @@ import assignmentsRouter from './assignments.js';
 import gradesRouter from './grades.js';
 import attendanceRouter from './attendance.js';
 import notificationsRouter from './notifications.js';
+import cronRouter from './cron.js';
 
-/**
- * Mount all API routes on the app
- * Routes are prefixed with /api/{resource}
- */
 export const mountRoutes = (app) => {
   app.use('/api/auth', authRouter);
   app.use('/api/users', userRouter);
@@ -23,4 +20,5 @@ export const mountRoutes = (app) => {
   app.use('/api/grades', gradesRouter);
   app.use('/api/attendance', attendanceRouter);
   app.use('/api/notifications', notificationsRouter);
+  app.use('/api/cron', cronRouter);
 };
