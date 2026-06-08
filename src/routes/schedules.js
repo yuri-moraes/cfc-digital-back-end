@@ -11,6 +11,7 @@ import { Notification } from '../models/Notification.js';
 import { sendWhatsApp } from '../utils/whatsapp.js';
 import { query } from '../db/pool.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../utils/errors.js';
+import { StudentAbsence } from '../models/StudentAbsence.js';
 
 const router = express.Router();
 
@@ -287,6 +288,77 @@ router.get('/:id/cancellations', authMiddleware, async (req, res) => {
       error: error.message,
       statusCode,
     });
+  }
+});
+
+// POST /api/schedules/:id/absence
+// Student declares absence for a class session
+router.post('/:id/absence', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date } = req.body;
+    const { userId, role } = req.user;
+
+    if (role !== USER_ROLES.STUDENT) {
+      return res.status(403).json({ error: 'Only students can declare absences', statusCode: 403 });
+    }
+
+    if (!date) return res.status(400).json({ error: 'date is required', statusCode: 400 });
+
+    const schedule = await Schedule.findById(id);
+    const enrollment = await query(
+      'SELECT 1 FROM enrollments WHERE student_id = $1 AND class_id = $2',
+      [userId, schedule.class_id]
+    );
+    if (enrollment.rows.length === 0) {
+      return res.status(403).json({ error: 'Not enrolled in this class', statusCode: 403 });
+    }
+
+    const result = await StudentAbsence.declare(userId, id, date);
+
+    const classRow = await query('SELECT name FROM classes WHERE id = $1', [schedule.class_id]);
+    const className = classRow.rows[0].name;
+
+    await Notification.create(
+      userId,
+      'absence_confirmed',
+      `Ausência registada: ${className}`,
+      result.absence.status === 'valid'
+        ? `Ausência registada com sucesso para ${date}.`
+        : `Ausência registada para ${date}, mas a aula será cobrada (declarada com menos de 1 hora de antecedência).`,
+      id,
+      date
+    );
+
+    const userRow = await query('SELECT phone_number FROM users WHERE id = $1', [userId]);
+    const prefsRow = await query(
+      'SELECT whatsapp_enabled FROM notification_preferences WHERE user_id = $1',
+      [userId]
+    );
+    const whatsappEnabled = prefsRow.rows[0]?.whatsapp_enabled ?? false;
+    const phone = userRow.rows[0]?.phone_number;
+
+    if (phone && whatsappEnabled) {
+      const msg = result.absence.status === 'valid'
+        ? `Olá! ✅\n\nA sua ausência na aula de ${className} em ${date} foi registada com sucesso.\n\nAté a próxima! 👋`
+        : `Olá! ⚠️\n\nA sua ausência foi registada, mas como falta menos de 1 hora para a aula de ${className}, a aula será cobrada mesmo assim.\n\nEm caso de dúvida, contacte o seu instrutor.`;
+      await sendWhatsApp(phone, msg);
+    }
+
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error: error.message, statusCode: error.statusCode || 500 });
+  }
+});
+
+// GET /api/schedules/:id/absences
+// Admin or instructor views absences for a schedule
+router.get('/:id/absences', authMiddleware, requireRole(USER_ROLES.ADMIN, USER_ROLES.INSTRUCTOR), async (req, res) => {
+  try {
+    const absences = await StudentAbsence.findBySchedule(req.params.id, req.query.date ?? null);
+    res.status(200).json(absences);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error: error.message, statusCode: error.statusCode || 500 });
   }
 });
 

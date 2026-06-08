@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { put } from '@vercel/blob';
 import { AttendanceRecord } from '../models/AttendanceRecord.js';
+import { StudentAbsence } from '../models/StudentAbsence.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { USER_ROLES } from '../constants.js';
@@ -84,6 +85,7 @@ router.post('/', authMiddleware, requireRole(USER_ROLES.INSTRUCTOR), upload.sing
 router.put('/:id/validate', authMiddleware, requireRole(USER_ROLES.ADMIN), async (req, res) => {
   try {
     const record = await AttendanceRecord.validate(req.params.id, req.user.userId);
+    await StudentAbsence.setNoShow(record.student_id, record.schedule_id, record.attendance_date);
     res.status(200).json(record);
   } catch (error) {
     res.status(error.statusCode || 500).json({ error: error.message, statusCode: error.statusCode || 500 });
