@@ -1,5 +1,5 @@
 import { query } from '../db/pool.js';
-import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { ConflictError, NotFoundError } from '../utils/errors.js';
 
 export class StudentAbsence {
   static async declare(studentId, scheduleId, absenceDate) {

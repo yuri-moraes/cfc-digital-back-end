@@ -7,7 +7,6 @@ import { Class } from '../src/models/Class.js';
 import { Schedule } from '../src/models/Schedule.js';
 import { Enrollment } from '../src/models/Enrollment.js';
 import { USER_ROLES } from '../src/constants.js';
-import { query } from '../src/db/pool.js';
 
 const createTestApp = () => {
   const app = express();
