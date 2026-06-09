@@ -1,11 +1,9 @@
 import { jest } from '@jest/globals';
 
 // ESM-compatible mock for @vercel/blob (must declare before dynamic imports)
-const mockPut = jest.fn().mockResolvedValue({ url: 'https://blob.vercel.com/test-photo.jpg' });
 const mockDel = jest.fn().mockResolvedValue(undefined);
 
 jest.unstable_mockModule('@vercel/blob', () => ({
-  put: mockPut,
   del: mockDel,
 }));
 

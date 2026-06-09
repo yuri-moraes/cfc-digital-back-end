@@ -117,7 +117,7 @@ export class AttendanceRecord {
          FROM attendance_records ar
          JOIN users u ON ar.student_id = u.id
          WHERE ar.status = 'pending' ${studentFilter}
-         ORDER BY ar.photo_uploaded_at ASC
+         ORDER BY ar.attendance_date ASC, ar.created_at ASC
          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         [...params, limit, offset]
       ),
