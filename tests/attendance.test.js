@@ -39,7 +39,6 @@ describe('Attendance Routes', () => {
     app = createTestApp();
 
     jest.clearAllMocks();
-    mockPut.mockResolvedValue({ url: 'https://blob.vercel.com/test-photo.jpg' });
     mockDel.mockResolvedValue(undefined);
 
     adminUser = await User.create('admin@test.com', 'password123', 'Admin User', USER_ROLES.ADMIN);
@@ -59,66 +58,52 @@ describe('Attendance Routes', () => {
   });
 
   describe('POST /api/attendance', () => {
-    it('should mark attendance with photo as instructor', async () => {
+    it('should mark attendance with plate as instructor', async () => {
       const res = await request(app)
         .post('/api/attendance')
         .set('Authorization', `Bearer ${instructorToken}`)
-        .field('scheduleId', testSchedule.id)
-        .field('studentId', studentUser.id)
-        .field('attendanceDate', '2026-06-04')
-        .attach('photo', Buffer.from('fake-image-data'), { filename: 'photo.jpg', contentType: 'image/jpeg' })
+        .send({ scheduleId: testSchedule.id, studentId: studentUser.id, attendanceDate: '2026-06-04', plate: 'ABC-1234' })
         .expect(201);
 
       expect(res.body.id).toBeDefined();
       expect(res.body.status).toBe('pending');
-      expect(res.body.photo_url).toBe('https://blob.vercel.com/test-photo.jpg');
-      expect(mockPut).toHaveBeenCalledTimes(1);
+      expect(res.body.plate).toBe('ABC-1234');
     });
 
-    it('should reject attendance marking by admin', async () => {
-      await request(app)
+    it('should mark attendance without plate', async () => {
+      const res = await request(app)
         .post('/api/attendance')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .field('scheduleId', testSchedule.id)
-        .field('studentId', studentUser.id)
-        .field('attendanceDate', '2026-06-04')
-        .attach('photo', Buffer.from('fake-image'), { filename: 'photo.jpg', contentType: 'image/jpeg' })
-        .expect(403);
+        .set('Authorization', `Bearer ${instructorToken}`)
+        .send({ scheduleId: testSchedule.id, studentId: studentUser.id, attendanceDate: '2026-06-04' })
+        .expect(201);
+
+      expect(res.body.id).toBeDefined();
+      expect(res.body.plate).toBeNull();
     });
 
     it('should reject attendance marking by student', async () => {
       await request(app)
         .post('/api/attendance')
         .set('Authorization', `Bearer ${studentToken}`)
-        .field('scheduleId', testSchedule.id)
-        .field('studentId', studentUser.id)
-        .field('attendanceDate', '2026-06-04')
-        .attach('photo', Buffer.from('fake-image'), { filename: 'photo.jpg', contentType: 'image/jpeg' })
+        .send({ scheduleId: testSchedule.id, studentId: studentUser.id, attendanceDate: '2026-06-04' })
         .expect(403);
     });
 
-    it('should reject when photo is missing', async () => {
-      const res = await request(app)
+    it('should reject attendance marking by admin', async () => {
+      await request(app)
         .post('/api/attendance')
-        .set('Authorization', `Bearer ${instructorToken}`)
-        .field('scheduleId', testSchedule.id)
-        .field('studentId', studentUser.id)
-        .field('attendanceDate', '2026-06-04')
-        .expect(400);
-
-      expect(res.body.error).toContain('Photo');
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ scheduleId: testSchedule.id, studentId: studentUser.id, attendanceDate: '2026-06-04' })
+        .expect(403);
     });
 
     it('should reject duplicate attendance for same student and date', async () => {
-      await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/existing.jpg');
+      await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       const res = await request(app)
         .post('/api/attendance')
         .set('Authorization', `Bearer ${instructorToken}`)
-        .field('scheduleId', testSchedule.id)
-        .field('studentId', studentUser.id)
-        .field('attendanceDate', '2026-06-04')
-        .attach('photo', Buffer.from('fake-image'), { filename: 'photo.jpg', contentType: 'image/jpeg' })
+        .send({ scheduleId: testSchedule.id, studentId: studentUser.id, attendanceDate: '2026-06-04' })
         .expect(409);
 
       expect(res.body.error).toContain('already marked');
@@ -127,17 +112,14 @@ describe('Attendance Routes', () => {
     it('should require authentication', async () => {
       await request(app)
         .post('/api/attendance')
-        .field('scheduleId', testSchedule.id)
-        .field('studentId', studentUser.id)
-        .field('attendanceDate', '2026-06-04')
-        .attach('photo', Buffer.from('fake-image'), { filename: 'photo.jpg', contentType: 'image/jpeg' })
+        .send({ scheduleId: testSchedule.id, studentId: studentUser.id, attendanceDate: '2026-06-04' })
         .expect(401);
     });
   });
 
   describe('GET /api/attendance/:id', () => {
     it('should get attendance record by ID as instructor', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       const res = await request(app)
         .get(`/api/attendance/${record.id}`)
@@ -150,7 +132,7 @@ describe('Attendance Routes', () => {
     });
 
     it('should allow student to see own attendance record', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       const res = await request(app)
         .get(`/api/attendance/${record.id}`)
@@ -161,7 +143,7 @@ describe('Attendance Routes', () => {
     });
 
     it('should deny student from seeing another students record', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, student2User.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, student2User.id, '2026-06-04');
 
       await request(app)
         .get(`/api/attendance/${record.id}`)
@@ -179,15 +161,15 @@ describe('Attendance Routes', () => {
     });
 
     it('should require authentication', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
       await request(app).get(`/api/attendance/${record.id}`).expect(401);
     });
   });
 
   describe('GET /api/attendance (list)', () => {
     it('should list pending attendance records for admin', async () => {
-      await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
-      await AttendanceRecord.create(testSchedule.id, student2User.id, '2026-06-04', 'https://blob.vercel.com/photo2.jpg');
+      await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
+      await AttendanceRecord.create(testSchedule.id, student2User.id, '2026-06-04');
 
       const res = await request(app)
         .get('/api/attendance?status=pending')
@@ -199,7 +181,7 @@ describe('Attendance Routes', () => {
     });
 
     it('should list attendance by schedule and date', async () => {
-      await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       const res = await request(app)
         .get(`/api/attendance?scheduleId=${testSchedule.id}&date=2026-06-04`)
@@ -210,7 +192,7 @@ describe('Attendance Routes', () => {
     });
 
     it('should list attendance by student and class', async () => {
-      await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       const res = await request(app)
         .get(`/api/attendance?studentId=${studentUser.id}&classId=${testClass.id}`)
@@ -221,8 +203,8 @@ describe('Attendance Routes', () => {
     });
 
     it('should filter results to own records for student', async () => {
-      await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
-      await AttendanceRecord.create(testSchedule.id, student2User.id, '2026-06-04', 'https://blob.vercel.com/photo2.jpg');
+      await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
+      await AttendanceRecord.create(testSchedule.id, student2User.id, '2026-06-04');
 
       const res = await request(app)
         .get('/api/attendance?status=pending')
@@ -257,7 +239,7 @@ describe('Attendance Routes', () => {
 
   describe('PUT /api/attendance/:id/validate', () => {
     it('should validate pending attendance as admin', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       const res = await request(app)
         .put(`/api/attendance/${record.id}/validate`)
@@ -269,17 +251,17 @@ describe('Attendance Routes', () => {
       expect(res.body.validated_at).toBeDefined();
     });
 
-    it('should reject instructor from validating attendance', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
-
-      await request(app)
+    it('should allow instructor to validate attendance', async () => {
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
+      const res = await request(app)
         .put(`/api/attendance/${record.id}/validate`)
         .set('Authorization', `Bearer ${instructorToken}`)
-        .expect(403);
+        .expect(200);
+      expect(res.body.status).toBe('validated');
     });
 
     it('should reject validating already validated attendance', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
       await AttendanceRecord.validate(record.id, adminUser.id);
 
       const res = await request(app)
@@ -298,14 +280,14 @@ describe('Attendance Routes', () => {
     });
 
     it('should require authentication', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
       await request(app).put(`/api/attendance/${record.id}/validate`).expect(401);
     });
   });
 
   describe('PUT /api/attendance/:id/reject', () => {
     it('should reject pending attendance as admin and delete photo', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       const res = await request(app)
         .put(`/api/attendance/${record.id}/reject`)
@@ -314,11 +296,10 @@ describe('Attendance Routes', () => {
 
       expect(res.body.status).toBe('rejected');
       expect(res.body.photo_url).toBeNull();
-      expect(mockDel).toHaveBeenCalledWith('https://blob.vercel.com/photo.jpg');
     });
 
     it('should reject instructor from rejecting attendance', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       await request(app)
         .put(`/api/attendance/${record.id}/reject`)
@@ -327,7 +308,7 @@ describe('Attendance Routes', () => {
     });
 
     it('should reject rejecting already rejected attendance', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
       await AttendanceRecord.reject(record.id, adminUser.id);
 
       const res = await request(app)
@@ -346,14 +327,14 @@ describe('Attendance Routes', () => {
     });
 
     it('should require authentication', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
       await request(app).put(`/api/attendance/${record.id}/reject`).expect(401);
     });
   });
 
   describe('DELETE /api/attendance/:id', () => {
     it('should delete attendance record as admin', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       const res = await request(app)
         .delete(`/api/attendance/${record.id}`)
@@ -361,11 +342,10 @@ describe('Attendance Routes', () => {
         .expect(200);
 
       expect(res.body.message).toBe('Attendance record deleted');
-      expect(mockDel).toHaveBeenCalledWith('https://blob.vercel.com/photo.jpg');
     });
 
     it('should reject instructor from deleting attendance', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       await request(app)
         .delete(`/api/attendance/${record.id}`)
@@ -374,7 +354,7 @@ describe('Attendance Routes', () => {
     });
 
     it('should reject student from deleting attendance', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       await request(app)
         .delete(`/api/attendance/${record.id}`)
@@ -390,7 +370,7 @@ describe('Attendance Routes', () => {
     });
 
     it('should require authentication', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
       await request(app).delete(`/api/attendance/${record.id}`).expect(401);
     });
   });
@@ -406,7 +386,7 @@ describe('Attendance Routes', () => {
       );
 
       // Fresh record
-      const fresh = await AttendanceRecord.create(testSchedule.id, student2User.id, '2026-06-04', 'https://blob.vercel.com/fresh.jpg');
+      const fresh = await AttendanceRecord.create(testSchedule.id, student2User.id, '2026-06-04');
 
       // Accessing findPending triggers cleanup
       const { rows: pending } = await AttendanceRecord.findPending();
@@ -418,7 +398,7 @@ describe('Attendance Routes', () => {
     });
 
     it('should not delete non-expired pending records', async () => {
-      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04', 'https://blob.vercel.com/photo.jpg');
+      const record = await AttendanceRecord.create(testSchedule.id, studentUser.id, '2026-06-04');
 
       const { rows: pending } = await AttendanceRecord.findPending();
 

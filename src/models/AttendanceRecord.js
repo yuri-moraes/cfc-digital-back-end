@@ -10,18 +10,17 @@ import {
 const EXPIRATION_HOURS = 48;
 
 export class AttendanceRecord {
-  static async create(scheduleId, studentId, attendanceDate, photoUrl) {
+  static async create(scheduleId, studentId, attendanceDate, plate = null) {
     if (!scheduleId) throw new BadRequestError('Schedule ID is required');
     if (!studentId) throw new BadRequestError('Student ID is required');
     if (!attendanceDate) throw new BadRequestError('Attendance date is required');
-    if (!photoUrl) throw new BadRequestError('Photo URL is required');
 
     try {
       const result = await query(
-        `INSERT INTO attendance_records (schedule_id, student_id, attendance_date, photo_url, photo_uploaded_at, status)
-         VALUES ($1, $2, $3, $4, NOW(), 'pending')
-         RETURNING id, schedule_id, student_id, attendance_date, status, photo_url, photo_uploaded_at, validated_by, validated_at, created_at`,
-        [scheduleId, studentId, attendanceDate, photoUrl]
+        `INSERT INTO attendance_records (schedule_id, student_id, attendance_date, plate, status)
+         VALUES ($1, $2, $3, $4, 'pending')
+         RETURNING id, schedule_id, student_id, attendance_date, plate, status, validated_by, validated_at, created_at`,
+        [scheduleId, studentId, attendanceDate, plate]
       );
       return result.rows[0];
     } catch (err) {
@@ -36,7 +35,7 @@ export class AttendanceRecord {
     await AttendanceRecord.deleteExpired();
 
     const result = await query(
-      `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.status,
+      `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.plate, ar.status,
               ar.photo_url, ar.photo_uploaded_at, ar.validated_by, ar.validated_at, ar.created_at,
               u.name as student_name, s.class_id, c.name as class_name
        FROM attendance_records ar
@@ -60,7 +59,7 @@ export class AttendanceRecord {
 
     const [dataResult, countResult] = await Promise.all([
       query(
-        `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.status,
+        `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.plate, ar.status,
                 ar.photo_url, ar.photo_uploaded_at, ar.validated_by, ar.validated_at, ar.created_at,
                 u.name as student_name
          FROM attendance_records ar
@@ -83,7 +82,7 @@ export class AttendanceRecord {
 
     const [dataResult, countResult] = await Promise.all([
       query(
-        `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.status,
+        `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.plate, ar.status,
                 ar.photo_url, ar.photo_uploaded_at, ar.validated_by, ar.validated_at, ar.created_at,
                 c.name as class_name
          FROM attendance_records ar
@@ -112,7 +111,7 @@ export class AttendanceRecord {
 
     const [dataResult, countResult] = await Promise.all([
       query(
-        `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.status,
+        `SELECT ar.id, ar.schedule_id, ar.student_id, ar.attendance_date, ar.plate, ar.status,
                 ar.photo_url, ar.photo_uploaded_at, ar.validated_by, ar.validated_at, ar.created_at,
                 u.name as student_name
          FROM attendance_records ar
@@ -148,7 +147,7 @@ export class AttendanceRecord {
       `UPDATE attendance_records
        SET status = 'validated', validated_by = $1, validated_at = NOW()
        WHERE id = $2
-       RETURNING id, schedule_id, student_id, attendance_date, status, photo_url, photo_uploaded_at, validated_by, validated_at, created_at`,
+       RETURNING id, schedule_id, student_id, attendance_date, plate, status, photo_url, photo_uploaded_at, validated_by, validated_at, created_at`,
       [adminId, id]
     );
 
@@ -182,7 +181,7 @@ export class AttendanceRecord {
       `UPDATE attendance_records
        SET status = 'rejected', photo_url = NULL, validated_by = $1, validated_at = NOW()
        WHERE id = $2
-       RETURNING id, schedule_id, student_id, attendance_date, status, photo_url, photo_uploaded_at, validated_by, validated_at, created_at`,
+       RETURNING id, schedule_id, student_id, attendance_date, plate, status, photo_url, photo_uploaded_at, validated_by, validated_at, created_at`,
       [adminId, id]
     );
 

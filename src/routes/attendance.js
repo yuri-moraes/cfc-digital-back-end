@@ -1,6 +1,4 @@
 import express from 'express';
-import multer from 'multer';
-import { put } from '@vercel/blob';
 import { AttendanceRecord } from '../models/AttendanceRecord.js';
 import { StudentAbsence } from '../models/StudentAbsence.js';
 import { authMiddleware } from '../middleware/auth.js';
@@ -9,7 +7,6 @@ import { USER_ROLES } from '../constants.js';
 import { paginate, paginatedResponse } from '../utils/paginate.js';
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
 
 router.get('/', authMiddleware, async (req, res) => {
   try {
@@ -57,24 +54,11 @@ router.get('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/attendance — multipart form with photo
-router.post('/', authMiddleware, requireRole(USER_ROLES.INSTRUCTOR), upload.single('photo'), async (req, res) => {
+// POST /api/attendance — JSON body with optional plate
+router.post('/', authMiddleware, requireRole(USER_ROLES.INSTRUCTOR), async (req, res) => {
   try {
-    const { scheduleId, studentId, attendanceDate } = req.body;
-
-    if (!req.file) {
-      return res.status(400).json({ error: 'Photo is required', statusCode: 400 });
-    }
-
-    // Upload to Vercel Blob
-    const blob = await put(
-      `attendance/${scheduleId}/${studentId}/${attendanceDate}-${Date.now()}.${req.file.mimetype.split('/')[1] || 'jpg'}`,
-      req.file.buffer,
-      { access: 'public', contentType: req.file.mimetype }
-    );
-
-    const record = await AttendanceRecord.create(scheduleId, studentId, attendanceDate, blob.url);
-
+    const { scheduleId, studentId, attendanceDate, plate } = req.body;
+    const record = await AttendanceRecord.create(scheduleId, studentId, attendanceDate, plate ?? null);
     res.status(201).json(record);
   } catch (error) {
     res.status(error.statusCode || 500).json({ error: error.message, statusCode: error.statusCode || 500 });
@@ -82,7 +66,7 @@ router.post('/', authMiddleware, requireRole(USER_ROLES.INSTRUCTOR), upload.sing
 });
 
 // PUT /api/attendance/:id/validate
-router.put('/:id/validate', authMiddleware, requireRole(USER_ROLES.ADMIN), async (req, res) => {
+router.put('/:id/validate', authMiddleware, requireRole(USER_ROLES.ADMIN, USER_ROLES.INSTRUCTOR), async (req, res) => {
   try {
     const record = await AttendanceRecord.validate(req.params.id, req.user.userId);
     await StudentAbsence.setNoShow(record.student_id, record.schedule_id, record.attendance_date);
