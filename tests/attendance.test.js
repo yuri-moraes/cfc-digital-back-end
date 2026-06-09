@@ -378,8 +378,8 @@ describe('Attendance Routes', () => {
       // Insert expired record directly (49 hours ago)
       const expiredTime = new Date(Date.now() - 49 * 60 * 60 * 1000);
       await query(
-        `INSERT INTO attendance_records (schedule_id, student_id, attendance_date, status, photo_url, photo_uploaded_at)
-         VALUES ($1, $2, $3, 'pending', $4, $5)`,
+        `INSERT INTO attendance_records (schedule_id, student_id, attendance_date, status, photo_url, photo_uploaded_at, created_at)
+         VALUES ($1, $2, $3, 'pending', $4, $5, $5)`,
         [testSchedule.id, studentUser.id, '2026-06-01', 'https://blob.vercel.com/expired.jpg', expiredTime]
       );
 
@@ -408,8 +408,8 @@ describe('Attendance Routes', () => {
     it('should not delete validated records even if old', async () => {
       const expiredTime = new Date(Date.now() - 49 * 60 * 60 * 1000);
       const insertResult = await query(
-        `INSERT INTO attendance_records (schedule_id, student_id, attendance_date, status, photo_url, photo_uploaded_at)
-         VALUES ($1, $2, $3, 'validated', $4, $5)
+        `INSERT INTO attendance_records (schedule_id, student_id, attendance_date, status, photo_url, photo_uploaded_at, created_at)
+         VALUES ($1, $2, $3, 'validated', $4, $5, $5)
          RETURNING id`,
         [testSchedule.id, studentUser.id, '2026-06-01', 'https://blob.vercel.com/old.jpg', expiredTime]
       );

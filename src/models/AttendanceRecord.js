@@ -191,7 +191,7 @@ export class AttendanceRecord {
   static async deleteExpired() {
     const expiredResult = await query(
       `SELECT id, photo_url FROM attendance_records
-       WHERE status = 'pending' AND photo_uploaded_at < NOW() - INTERVAL '${EXPIRATION_HOURS} hours'`
+       WHERE status = 'pending' AND created_at < NOW() - INTERVAL '${EXPIRATION_HOURS} hours'`
     );
 
     for (const record of expiredResult.rows) {
