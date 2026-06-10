@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import { createTestUser } from './helpers.js';
+import { User } from '../src/models/User.js';
 import cronRouter from '../src/routes/cron.js';
 import { Class } from '../src/models/Class.js';
 import { Schedule } from '../src/models/Schedule.js';
@@ -43,8 +43,8 @@ describe('Cron: send-reminders', () => {
 
   beforeEach(async () => {
     app = createTestApp();
-    instructor = await createTestUser('instructor@example.com', 'password123', 'Instructor', USER_ROLES.INSTRUCTOR);
-    student = await createTestUser('student@example.com', 'password123', 'Student', USER_ROLES.STUDENT);
+    instructor = await User.create('instructor@example.com', 'password123', 'Instructor', USER_ROLES.INSTRUCTOR);
+    student = await User.create('student@example.com', 'password123', 'Student', USER_ROLES.STUDENT);
     cls = await Class.create('Math', null, instructor.id);
     schedule = await Schedule.create(cls.id, todayDayOfWeek(), getSaoPauloTime(15), getSaoPauloTime(75));
     await Enrollment.create(student.id, cls.id);
@@ -115,7 +115,7 @@ describe('Cron: send-reminders', () => {
   });
 
   test('respects custom minutesBefore preference', async () => {
-    const student2 = await createTestUser('s2@example.com', 'password123', 'S2', USER_ROLES.STUDENT);
+    const student2 = await User.create('s2@example.com', 'password123', 'S2', USER_ROLES.STUDENT);
     await Enrollment.create(student2.id, cls.id);
     const schedule30 = await Schedule.create(cls.id, todayDayOfWeek(), getSaoPauloTime(30), getSaoPauloTime(90));
     await NotificationPreference.update(student2.id, { minutes_before: 30 });

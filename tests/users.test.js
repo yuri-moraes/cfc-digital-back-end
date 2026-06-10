@@ -2,7 +2,7 @@
 import express from 'express';
 import request from 'supertest';
 import { User } from '../src/models/User.js';
-import { createTestUser, getAuthToken } from './helpers.js';
+import { createAdmin, createInstructor, createStudent, tokenFor } from './helpers.js';
 import usersRouter from '../src/routes/users.js';
 import { USER_ROLES } from '../src/constants.js';
 
@@ -27,14 +27,12 @@ describe('User CRUD Routes', () => {
   beforeEach(async () => {
     app = createTestApp();
 
-    // Create test users
-    adminUser = await createTestUser('admin@example.com', 'password123', 'Admin User', USER_ROLES.ADMIN);
-    studentUser = await createTestUser('student@example.com', 'password123', 'Student User', USER_ROLES.STUDENT);
-    instructorUser = await createTestUser('instructor@example.com', 'password123', 'Instructor User', USER_ROLES.INSTRUCTOR);
+    adminUser = await createAdmin({ email: 'admin@example.com', password: 'password123', name: 'Admin User' });
+    studentUser = await createStudent({ email: 'student@example.com', password: 'password123', name: 'Student User' });
+    instructorUser = await createInstructor({ email: 'instructor@example.com', password: 'password123', name: 'Instructor User' });
 
-    // Generate tokens
-    adminToken = getAuthToken(adminUser.id, adminUser.email, USER_ROLES.ADMIN);
-    studentToken = getAuthToken(studentUser.id, studentUser.email, USER_ROLES.STUDENT);
+    adminToken = tokenFor(adminUser);
+    studentToken = tokenFor(studentUser);
   });
 
   describe('GET /api/users', () => {

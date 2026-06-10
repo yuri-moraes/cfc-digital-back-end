@@ -1,9 +1,6 @@
 import express from 'express';
 import request from 'supertest';
 import { User } from '../src/models/User.js';
-import { Vehicle } from '../src/models/Vehicle.js';
-import { InstructorVehicle } from '../src/models/InstructorVehicle.js';
-import { InstructorAvailability } from '../src/models/InstructorAvailability.js';
 import { generateToken } from '../src/utils/jwt.js';
 import authRouter from '../src/routes/auth.js';
 
@@ -22,7 +19,7 @@ export const createAdmin = (overrides = {}) =>
     overrides.email    ?? 'admin@test.com',
     overrides.password ?? 'Pass123!',
     overrides.name     ?? 'Admin',
-    'admin',
+    'ADMIN',
     overrides.phone    ?? null
   );
 
@@ -31,7 +28,7 @@ export const createInstructor = (overrides = {}) =>
     overrides.email    ?? 'instructor@test.com',
     overrides.password ?? 'Pass123!',
     overrides.name     ?? 'Instructor',
-    'instructor',
+    'INSTRUCTOR',
     overrides.phone    ?? null
   );
 
@@ -40,30 +37,36 @@ export const createStudent = (overrides = {}) =>
     overrides.email             ?? 'student@test.com',
     overrides.password          ?? 'Pass123!',
     overrides.name              ?? 'Student',
-    'student',
+    'STUDENT',
     overrides.phone             ?? null,
     overrides.purchasedLessons  ?? 10,
     overrides.category          ?? 'B'
   );
 
-export const createVehicle = (overrides = {}) =>
-  Vehicle.create(
+export const createVehicle = async (overrides = {}) => {
+  const { Vehicle } = await import('../src/models/Vehicle.js');
+  return Vehicle.create(
     overrides.plate ?? 'ABC1234',
     overrides.model ?? 'Gol',
     overrides.year  ?? 2022
   );
+};
 
-export const linkVehicle = (instructorId, vehicleId) =>
-  InstructorVehicle.link(instructorId, vehicleId);
+export const linkVehicle = async (instructorId, vehicleId) => {
+  const { InstructorVehicle } = await import('../src/models/InstructorVehicle.js');
+  return InstructorVehicle.link(instructorId, vehicleId);
+};
 
-export const addAvailability = (instructorId, vehicleId, overrides = {}) =>
-  InstructorAvailability.create(
+export const addAvailability = async (instructorId, vehicleId, overrides = {}) => {
+  const { InstructorAvailability } = await import('../src/models/InstructorAvailability.js');
+  return InstructorAvailability.create(
     instructorId,
     vehicleId,
     overrides.dayOfWeek  ?? 1,
     overrides.startTime  ?? '08:00',
     overrides.endTime    ?? '20:00'
   );
+};
 
 export const tokenFor = (user) =>
   generateToken({ userId: user.id, email: user.email, role: user.role });
