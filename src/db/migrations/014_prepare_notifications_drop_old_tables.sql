@@ -15,8 +15,17 @@ BEGIN
   END IF;
 END $$;
 
-ALTER TABLE notifications ADD CONSTRAINT notifications_type_check
-  CHECK (type IN ('class_reminder', 'class_cancelled', 'class_rescheduled'));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'notifications_type_check'
+      AND conrelid = 'notifications'::regclass
+  ) THEN
+    ALTER TABLE notifications ADD CONSTRAINT notifications_type_check
+      CHECK (type IN ('class_reminder', 'class_cancelled', 'class_rescheduled'));
+  END IF;
+END $$;
 
 DROP TABLE IF EXISTS schedule_cancellations;
 DROP TABLE IF EXISTS student_absences;
