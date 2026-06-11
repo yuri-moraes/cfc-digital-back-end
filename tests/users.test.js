@@ -463,4 +463,33 @@ describe('User CRUD Routes', () => {
       expect(response.body.phone_number).toBe('+5511777776666');
     });
   });
+
+  describe('purchased_lessons and category', () => {
+    test('POST /api/users - admin can create student with purchased_lessons and category', async () => {
+      const res = await request(app)
+        .post('/api/users')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ email: 'newstudent@test.com', password: 'Pass123!', name: 'New', role: USER_ROLES.STUDENT, purchased_lessons: 5, category: 'B' });
+      expect(res.status).toBe(201);
+      expect(res.body.purchased_lessons).toBe(5);
+      expect(res.body.category).toBe('B');
+    });
+
+    test('PUT /api/users/:id - update category validates allowed values', async () => {
+      const res = await request(app)
+        .put(`/api/users/${studentUser.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ category: 'X' });
+      expect(res.status).toBe(400);
+    });
+
+    test('PUT /api/users/:id - admin can update purchased_lessons', async () => {
+      const res = await request(app)
+        .put(`/api/users/${studentUser.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ purchased_lessons: 20 });
+      expect(res.status).toBe(200);
+      expect(res.body.purchased_lessons).toBe(20);
+    });
+  });
 });
