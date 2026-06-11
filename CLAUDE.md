@@ -97,46 +97,59 @@ cfc-digital-backend/
 │   ├── db/
 │   │   ├── pool.js              # PostgreSQL connection pool management
 │   │   └── init.js              # Database migrations runner
-│   │   └── migrations/          # SQL migration files
-│   │       ├── 001_create_users_table.sql
-│   │       ├── 002_create_classes_table.sql
-│   │       ├── 003_create_schedules_table.sql
-│   │       └── 004_create_enrollments_table.sql
+│   │   └── migrations/          # SQL migration files (001-020)
 │   │
 │   ├── models/                  # Data models (business logic)
-│   │   ├── User.js              # User model - authentication, CRUD
-│   │   ├── Class.js             # Class model - courses/subjects
-│   │   ├── Schedule.js          # Schedule model - class meeting times
-│   │   └── Enrollment.js        # Enrollment model - student-class relationships
+│   │   ├── User.js              # User authentication, CRUD
+│   │   ├── Vehicle.js           # Vehicle registry
+│   │   ├── InstructorVehicle.js # Instructor-vehicle associations
+│   │   ├── InstructorAvailability.js # Instructor available hours/days
+│   │   ├── AvailableSlot.js     # Computed available lesson slots
+│   │   ├── LessonSlot.js        # Booked lessons (student-instructor-vehicle-date-time)
+│   │   ├── ExamResult.js        # Practical exam pass/fail per student per class
+│   │   ├── Notification.js      # Notifications (cron-sent, read status)
+│   │   └── NotificationPreference.js # User notification preferences
 │   │
 │   ├── routes/                  # Express route handlers
 │   │   ├── index.js             # Route mounting
-│   │   ├── auth.js              # Login, logout, get current user
-│   │   ├── users.js             # User CRUD and admin functions
-│   │   ├── classes.js           # Class CRUD
-│   │   ├── schedules.js         # Schedule CRUD
-│   │   └── enrollments.js       # Enrollment CRUD
+│   │   ├── auth.js              # Login, get current user
+│   │   ├── users.js             # User CRUD (admin), self-profile (student/instructor)
+│   │   ├── vehicles.js          # Vehicle CRUD (admin)
+│   │   ├── instructors.js       # Instructor availability management
+│   │   ├── slots.js             # Available slots query
+│   │   ├── lessonSlots.js       # Lesson booking, status update
+│   │   ├── examResults.js       # Exam result recording
+│   │   ├── notifications.js     # Notification preferences + listing
+│   │   └── cron.js              # Reminder sending (Vercel Cron)
 │   │
 │   ├── middleware/              # Express middleware
 │   │   ├── auth.js              # JWT verification
 │   │   ├── roleCheck.js         # Role-based access control
-│   │   └── errorHandler.js      # Global error handling
+│   │   ├── errorHandler.js      # Global error handling
+│   │   ├── requestLogger.js     # Structured logging
+│   │   └── rateLimiter.js       # Rate limiting
 │   │
 │   └── utils/                   # Utility functions
 │       ├── jwt.js               # JWT token generation/verification
-│       ├── validators.js        # Input validation functions
-│       └── errors.js            # Custom error classes
+│       ├── validators.js        # Input validation
+│       ├── paginate.js          # Pagination helper
+│       ├── logger.js            # Pino logger
+│       └── whatsapp.js          # Z-API WhatsApp integration
 │
 ├── api/
 │   └── index.js                 # Vercel serverless function entry point
 │
-├── tests/                       # Test files
-│   ├── setup.js                # Test database setup/teardown
-│   ├── auth.test.js            # Authentication tests
-│   ├── users.test.js           # User management tests
-│   ├── classes.test.js         # Class management tests
-│   ├── schedules.test.js       # Schedule management tests
-│   └── enrollments.test.js     # Enrollment management tests
+├── tests/                       # Test files (13 suites, 144 tests)
+│   ├── setup.js                 # Test database setup/teardown
+│   ├── auth.test.js
+│   ├── users.test.js
+│   ├── vehicles.test.js
+│   ├── instructors.test.js
+│   ├── slots.test.js
+│   ├── lessonSlots.test.js
+│   ├── examResults.test.js
+│   ├── notifications.test.js
+│   └── cron.test.js
 │
 ├── jest.config.js              # Test runner configuration
 ├── .vercelignore               # Files to exclude from Vercel deployment
@@ -149,64 +162,96 @@ cfc-digital-backend/
 
 ## Database Schema
 
-### users table
-```sql
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'instructor', 'student')),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+### Core tables (lesson-slot model)
 
-### classes table
-```sql
-CREATE TABLE classes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  instructor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+**users**: Authentication, profiles, roles
+- id, email, password_hash, name, role (admin/instructor/student)
+- phone_number, license_number, license_expiry, preferred_vehicle_class
 
-### schedules table
-```sql
-CREATE TABLE schedules (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  day_of_week VARCHAR(20) NOT NULL,
-  start_time TIME NOT NULL,
-  end_time TIME NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+**vehicles**: Fleet registry
+- id, plate, make, model, year, vehicle_class (auto/manual), status
 
-### enrollments table
-```sql
-CREATE TABLE enrollments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(student_id, class_id)
-);
-```
+**instructor_vehicles**: Instructor qualifications per vehicle
+- id, instructor_id FK, vehicle_id FK
+
+**instructor_availability**: Instructor available hours
+- id, instructor_id FK, day_of_week, start_time, end_time
+
+**lesson_slots**: Booked lessons (core transactional table)
+- id, student_id FK, instructor_id FK, vehicle_id FK
+- scheduled_date, start_time, status (scheduled/completed/cancelled/no_show/absent_valid/absent_charged)
+- plate_at_checkin, validated_by FK, validated_at
+- absence_declared_at, cancellation_reason, cancelled_by FK, cancelled_at
+- created_at
+
+**exam_results**: Practical exam outcomes
+- id, student_id FK, class_category (A/B/B+/C/D/E), exam_date, result (pass/fail)
+
+### Notification system tables
+
+**notification_preferences**: User notification settings
+- id, user_id FK, minutes_before (default 60), notify_via_email/sms/whatsapp
+
+**notifications**: Sent notifications log
+- id, user_id FK, lesson_slot_id FK, type, title, body, read, created_at
+
+### Legacy tables (kept for backward compatibility, unused in new flow)
+
+- classes, schedules, enrollments (from Phase 1)
+- assignments, grades, attendance_records (from Phase 2A)
+- schedule_cancellations, student_absences (from Phase 2C)
 
 ---
 
 ## API Endpoints
 
-See `API.md` for complete API documentation.
+See `API.md` for complete documentation. Quick reference:
 
-Quick reference:
-- **Auth**: POST /auth/login, GET /auth/me, POST /auth/logout
-- **Users**: GET/POST /users, GET/PUT/DELETE /users/:id
-- **Classes**: GET/POST /classes, GET/PUT/DELETE /classes/:id
-- **Schedules**: GET/POST /schedules, GET/PUT/DELETE /schedules/:id
-- **Enrollments**: GET/POST /enrollments, DELETE /enrollments/:id
+**Auth** (public)
+- POST /api/auth/login
+- GET /api/auth/me (requires JWT)
+
+**Users** (admin: full CRUD; student/instructor: read/update self)
+- GET /api/users (admin)
+- POST /api/users (admin)
+- GET /api/users/:id
+- PUT /api/users/:id
+- DELETE /api/users/:id (admin)
+
+**Vehicles** (admin)
+- GET /api/vehicles
+- POST /api/vehicles
+- GET /api/vehicles/:id
+- PUT /api/vehicles/:id
+- DELETE /api/vehicles/:id
+
+**Instructors**
+- GET /api/instructors/:instructorId/availability
+- POST /api/instructors/:instructorId/availability
+- DELETE /api/instructors/:instructorId/availability/:availabilityId
+
+**Available Slots**
+- GET /api/slots?instructorId=...&vehicleClass=...&fromDate=...&toDate=...
+
+**Lesson Slots** (core booking)
+- GET /api/lesson-slots (filters: studentId, instructorId, status, date range)
+- POST /api/lesson-slots (student books lesson)
+- PUT /api/lesson-slots/:id/status (instructor validates/cancels)
+- PUT /api/lesson-slots/:id/absence (student declares absence)
+
+**Exam Results**
+- GET /api/exam-results (filters: studentId, classCategory)
+- POST /api/exam-results (instructor records result)
+
+**Notifications**
+- GET /api/notifications/preferences (student/instructor)
+- PUT /api/notifications/preferences (student/instructor)
+- GET /api/notifications (paginated)
+- PUT /api/notifications/:id/read
+- PUT /api/notifications/read-all
+
+**Cron** (internal, Vercel Cron)
+- POST /api/cron/send-reminders (CRON_SECRET auth)
 
 ---
 
@@ -215,91 +260,119 @@ Quick reference:
 ### User Model
 
 ```javascript
-import { User } from './src/models/User.js';
+import User from './src/models/User.js';
 
-// Authenticate user with email and password
+// Authenticate user
 const user = await User.authenticate(email, password);
 
-// Create new user
-const newUser = await User.create(email, password, name, role);
+// Create user (admin)
+const newUser = await User.create({email, password, name, role, phoneNumber, ...});
 
-// Find user by ID
+// Find user
 const user = await User.findById(userId);
 
-// List all users
+// List users (admin)
 const users = await User.list();
 
 // Update user
-const updated = await User.update(userId, { name, email });
+const updated = await User.update(userId, updates);
 
-// Delete user
+// Delete user (admin)
 await User.delete(userId);
 ```
 
-### Class Model
+### Vehicle Model
 
 ```javascript
-import { Class } from './src/models/Class.js';
+import Vehicle from './src/models/Vehicle.js';
 
-// Create class
-const cls = await Class.create(name, description, instructorId);
+// Create vehicle (admin)
+const vehicle = await Vehicle.create({plate, make, model, year, vehicleClass});
 
-// Find class by ID
-const cls = await Class.findById(classId);
+// Find vehicle
+const vehicle = await Vehicle.findById(vehicleId);
 
-// List all classes
-const classes = await Class.list();
+// List all vehicles
+const vehicles = await Vehicle.list();
 
-// Update class (checks instructor ownership)
-const updated = await Class.update(classId, updates, userId, userRole);
+// Update vehicle (admin)
+const updated = await Vehicle.update(vehicleId, updates);
 
-// Delete class (checks instructor ownership)
-await Class.delete(classId, userId, userRole);
+// Delete vehicle (admin)
+await Vehicle.delete(vehicleId);
 ```
 
-### Schedule Model
+### LessonSlot Model
 
 ```javascript
-import { Schedule } from './src/models/Schedule.js';
+import LessonSlot from './src/models/LessonSlot.js';
 
-// Create schedule
-const sched = await Schedule.create(classId, dayOfWeek, startTime, endTime);
+// Book lesson (student)
+const slot = await LessonSlot.create({studentId, instructorId, vehicleId, scheduledDate, startTime});
 
-// Find schedule by ID
-const sched = await Schedule.findById(scheduleId);
+// List lessons
+const slots = await LessonSlot.list({studentId, instructorId, status, fromDate, toDate});
 
-// List schedules for class
-const scheds = await Schedule.listByClass(classId);
+// Update status (instructor validates/cancels)
+const updated = await LessonSlot.updateStatus(slotId, status, {validatedBy, cancellationReason, ...});
 
-// List schedules for instructor
-const scheds = await Schedule.listByInstructor(instructorId);
-
-// Update schedule (checks ownership)
-const updated = await Schedule.update(scheduleId, updates, userId, userRole);
-
-// Delete schedule (checks ownership)
-await Schedule.delete(scheduleId, userId, userRole);
+// Declare absence (student)
+const updated = await LessonSlot.declareAbsence(slotId, studentId);
 ```
 
-### Enrollment Model
+### InstructorAvailability Model
 
 ```javascript
-import { Enrollment } from './src/models/Enrollment.js';
+import InstructorAvailability from './src/models/InstructorAvailability.js';
 
-// Create enrollment
-const enr = await Enrollment.create(studentId, classId);
+// Add availability (instructor)
+const avail = await InstructorAvailability.create(instructorId, {dayOfWeek, startTime, endTime});
 
-// List enrollments for student
-const enrs = await Enrollment.listByStudent(studentId);
+// List instructor availability
+const avails = await InstructorAvailability.listByInstructor(instructorId);
 
-// List enrollments for class
-const enrs = await Enrollment.listByClass(classId);
+// Delete availability (instructor)
+await InstructorAvailability.delete(availabilityId);
+```
 
-// List all enrollments
-const enrs = await Enrollment.listAll();
+### AvailableSlot Model
 
-// Delete enrollment (checks authorization)
-await Enrollment.delete(enrollmentId, userId, userRole);
+```javascript
+import AvailableSlot from './src/models/AvailableSlot.js';
+
+// Compute available slots (student booking UI)
+const slots = await AvailableSlot.query({instructorId, vehicleClass, fromDate, toDate});
+// Returns holes in instructor's calendar (factoring in existing lessons, availability)
+```
+
+### ExamResult Model
+
+```javascript
+import ExamResult from './src/models/ExamResult.js';
+
+// Record exam result (instructor)
+const result = await ExamResult.create({studentId, classCategory, examDate, result});
+
+// List results (filters: studentId, classCategory)
+const results = await ExamResult.list({studentId, classCategory});
+```
+
+### Notification Model
+
+```javascript
+import Notification from './src/models/Notification.js';
+
+// Send notification (cron)
+const notif = await Notification.create({userId, lessonSlotId, type, title, body});
+
+// List user notifications
+const notifs = await Notification.listByUser(userId, {limit, offset, read});
+
+// Mark as read
+await Notification.markRead(notificationId);
+
+// Mark all as read
+await Notification.markAllRead(userId);
 ```
 
 ---
@@ -553,29 +626,31 @@ Set in Vercel dashboard:
 
 ### Current State
 
-- **Phase 1 Complete**: Core API endpoints implemented
-- **Database**: PostgreSQL with migrations
-- **Authentication**: JWT with role-based access control
-- **Testing**: Comprehensive test coverage with Jest + Supertest
-- **Frontend Integration**: Ready for frontend consumption via REST API
+- **Lesson-Slot Model**: Driving lessons (student-instructor-vehicle-date-time booking)
+- **Core Features**: User auth (JWT), vehicle fleet, instructor availability, lesson booking
+- **Notifications**: Cron-driven reminders via email/SMS/WhatsApp (Z-API integration)
+- **Exam Tracking**: Practical exam result recording per student per vehicle class
+- **Database**: PostgreSQL (20 migrations, auto-run on server start)
+- **Authentication**: JWT with role-based access control (admin/instructor/student)
+- **Testing**: 144 tests across 13 suites, all passing
+- **Rate Limiting**: 10/15min on login, 100/min on all /api/*
+- **Pagination**: Standard { data, meta } envelope on all list endpoints
 
 ### Known Limitations
 
-- No backend database integration yet (migrations prepared, running in-memory during development)
-- No email notifications
-- No audit logging
-- No rate limiting
-- No pagination on list endpoints
+- No refresh tokens (future enhancement)
+- No audit logging of admin actions
+- Limited email template customization for WhatsApp
+- No SMS carrier integration (fire-and-forget via Z-API only)
 
 ### Future Enhancements
 
-- Email notifications for class updates
-- Audit log for admin actions
-- Rate limiting and request throttling
-- Pagination for list endpoints
-- File upload support (e.g., class materials)
-- WebSocket support for real-time updates
-- Caching layer for frequently accessed data
+- Refresh token mechanism for improved security
+- Audit log for all admin/instructor actions
+- SMS delivery integration (currently WhatsApp only)
+- Payment/subscription tracking
+- Student progress analytics and reporting
+- Instructor performance metrics
 
 ---
 
