@@ -3,6 +3,7 @@ import userRouter from './users.js';
 import vehiclesRouter from './vehicles.js';
 import notificationsRouter from './notifications.js';
 import cronRouter from './cron.js';
+import instructorsRouter from './instructors.js';
 
 export const mountRoutes = (app) => {
   app.use('/api/auth', authRouter);
@@ -10,4 +11,5 @@ export const mountRoutes = (app) => {
   app.use('/api/vehicles', vehiclesRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/cron', cronRouter);
+  app.use('/api/instructors', instructorsRouter);
 };
