@@ -1,9 +1,13 @@
+import request from 'supertest';
 import {
-  createAdmin, createInstructor, createStudent,
-  createVehicle, linkVehicle, addAvailability
+  createTestApp, createAdmin, createInstructor, createStudent,
+  createVehicle, linkVehicle, addAvailability, tokenFor
 } from './helpers.js';
 import { LessonSlot } from '../src/models/LessonSlot.js';
 import { query } from '../src/db/pool.js';
+import lessonSlotsRouter from '../src/routes/lessonSlots.js';
+
+const app2 = createTestApp(['/api/lesson-slots', lessonSlotsRouter]);
 
 let admin, instructor, student, vehicle;
 const NEXT_MONDAY = (() => {
@@ -157,4 +161,110 @@ test('declareAbsence - absent_charged when < 1h before', async () => {
   );
   const updated = await LessonSlot.declareAbsence(slot.id, student.id);
   expect(updated.status).toBe('absent_charged');
+});
+
+test('POST /api/lesson-slots - admin creates single slot', async () => {
+  const adminToken = tokenFor(admin);
+  const res = await request(app2)
+    .post('/api/lesson-slots')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({
+      student_id: student.id, instructor_id: instructor.id,
+      vehicle_id: vehicle.id, scheduled_date: NEXT_MONDAY, start_time: '08:00'
+    });
+  expect(res.status).toBe(201);
+  expect(res.body.status).toBe('scheduled');
+});
+
+test('POST /api/lesson-slots/batch - admin creates batch', async () => {
+  const adminToken = tokenFor(admin);
+  const res = await request(app2)
+    .post('/api/lesson-slots/batch')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({
+      student_id: student.id, instructor_id: instructor.id,
+      vehicle_id: vehicle.id, days_of_week: [1], start_time: '08:00',
+      start_date: NEXT_MONDAY, quantity: 2
+    });
+  expect(res.status).toBe(201);
+  expect(res.body.length).toBe(2);
+});
+
+test('GET /api/lesson-slots - instructor sees only own', async () => {
+  const instructorToken = tokenFor(instructor);
+  await LessonSlot.createSingle(student.id, instructor.id, vehicle.id, NEXT_MONDAY, '08:00');
+  const res = await request(app2)
+    .get('/api/lesson-slots')
+    .set('Authorization', `Bearer ${instructorToken}`);
+  expect(res.status).toBe(200);
+  expect(res.body.data.length).toBe(1);
+});
+
+test('GET /api/lesson-slots - student sees only own', async () => {
+  const studentToken = tokenFor(student);
+  await LessonSlot.createSingle(student.id, instructor.id, vehicle.id, NEXT_MONDAY, '08:00', { checkBalance: false });
+  const s2 = await createStudent({ email: 's3@test.com' });
+  await query('UPDATE users SET purchased_lessons = 5 WHERE id = $1', [s2.id]);
+  await LessonSlot.createSingle(s2.id, instructor.id, vehicle.id, NEXT_MONDAY, '08:50', { checkBalance: false });
+  const res = await request(app2)
+    .get('/api/lesson-slots')
+    .set('Authorization', `Bearer ${studentToken}`);
+  expect(res.body.data.length).toBe(1);
+});
+
+test('PUT /api/lesson-slots/:id/checkin - instructor checks in', async () => {
+  const instructorToken = tokenFor(instructor);
+  const slot = await LessonSlot.createSingle(
+    student.id, instructor.id, vehicle.id,
+    new Date().toISOString().slice(0, 10), '00:00', { checkBalance: false }
+  );
+  const res = await request(app2)
+    .put(`/api/lesson-slots/${slot.id}/checkin`)
+    .set('Authorization', `Bearer ${instructorToken}`)
+    .send({ plate_at_checkin: 'ABC1234' });
+  expect(res.status).toBe(200);
+  expect(res.body.status).toBe('completed');
+});
+
+test('PUT /api/lesson-slots/:id/no-show - instructor marks no-show', async () => {
+  const instructorToken = tokenFor(instructor);
+  const slot = await LessonSlot.createSingle(
+    student.id, instructor.id, vehicle.id, NEXT_MONDAY, '09:00', { checkBalance: false }
+  );
+  const res = await request(app2)
+    .put(`/api/lesson-slots/${slot.id}/no-show`)
+    .set('Authorization', `Bearer ${instructorToken}`);
+  expect(res.status).toBe(200);
+  expect(res.body.status).toBe('no_show');
+});
+
+test('POST /api/lesson-slots/:id/absence - student declares absence', async () => {
+  const studentToken = tokenFor(student);
+  const future = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const year = future.getFullYear();
+  const month = String(future.getMonth() + 1).padStart(2, '0');
+  const day = String(future.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`;
+  const timeStr = `${String(future.getHours()).padStart(2,'0')}:${String(future.getMinutes()).padStart(2,'0')}`;
+  const slot = await LessonSlot.createSingle(
+    student.id, instructor.id, vehicle.id, dateStr, timeStr, { checkBalance: false }
+  );
+  const res = await request(app2)
+    .post(`/api/lesson-slots/${slot.id}/absence`)
+    .set('Authorization', `Bearer ${studentToken}`);
+  expect(res.status).toBe(200);
+  expect(res.body.status).toBe('absent_valid');
+});
+
+test('DELETE /api/lesson-slots/:id - admin cancels', async () => {
+  const adminToken = tokenFor(admin);
+  const slot = await LessonSlot.createSingle(
+    student.id, instructor.id, vehicle.id, NEXT_MONDAY, '08:00', { checkBalance: false }
+  );
+  const res = await request(app2)
+    .delete(`/api/lesson-slots/${slot.id}`)
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ reason: 'Holiday' });
+  expect(res.status).toBe(200);
+  expect(res.body.status).toBe('cancelled');
 });

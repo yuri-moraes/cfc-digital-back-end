@@ -5,6 +5,7 @@ import notificationsRouter from './notifications.js';
 import cronRouter from './cron.js';
 import instructorsRouter from './instructors.js';
 import slotsRouter from './slots.js';
+import lessonSlotsRouter from './lessonSlots.js';
 
 export const mountRoutes = (app) => {
   app.use('/api/auth', authRouter);
@@ -14,4 +15,5 @@ export const mountRoutes = (app) => {
   app.use('/api/cron', cronRouter);
   app.use('/api/instructors', instructorsRouter);
   app.use('/api/slots', slotsRouter);
+  app.use('/api/lesson-slots', lessonSlotsRouter);
 };
