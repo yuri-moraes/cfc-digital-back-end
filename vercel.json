@@ -1,13 +1,9 @@
 {
   "buildCommand": "npm install",
-  "env": {
-    "DATABASE_URL": "@database_url",
-    "JWT_SECRET": "@jwt_secret"
-  },
   "crons": [
     {
       "path": "/api/cron/send-reminders",
-      "schedule": "* * * * *"
+      "schedule": "0 8 * * *"
     }
   ]
 }
