@@ -2,7 +2,7 @@
 import express from 'express';
 import request from 'supertest';
 import { User } from '../src/models/User.js';
-import { createTestUser, getAuthToken } from './helpers.js';
+import { createAdmin, createInstructor, createStudent, tokenFor } from './helpers.js';
 import usersRouter from '../src/routes/users.js';
 import { USER_ROLES } from '../src/constants.js';
 
@@ -27,14 +27,12 @@ describe('User CRUD Routes', () => {
   beforeEach(async () => {
     app = createTestApp();
 
-    // Create test users
-    adminUser = await createTestUser('admin@example.com', 'password123', 'Admin User', USER_ROLES.ADMIN);
-    studentUser = await createTestUser('student@example.com', 'password123', 'Student User', USER_ROLES.STUDENT);
-    instructorUser = await createTestUser('instructor@example.com', 'password123', 'Instructor User', USER_ROLES.INSTRUCTOR);
+    adminUser = await createAdmin({ email: 'admin@example.com', password: 'password123', name: 'Admin User' });
+    studentUser = await createStudent({ email: 'student@example.com', password: 'password123', name: 'Student User' });
+    instructorUser = await createInstructor({ email: 'instructor@example.com', password: 'password123', name: 'Instructor User' });
 
-    // Generate tokens
-    adminToken = getAuthToken(adminUser.id, adminUser.email, USER_ROLES.ADMIN);
-    studentToken = getAuthToken(studentUser.id, studentUser.email, USER_ROLES.STUDENT);
+    adminToken = tokenFor(adminUser);
+    studentToken = tokenFor(studentUser);
   });
 
   describe('GET /api/users', () => {
@@ -463,6 +461,35 @@ describe('User CRUD Routes', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.phone_number).toBe('+5511777776666');
+    });
+  });
+
+  describe('purchased_lessons and category', () => {
+    test('POST /api/users - admin can create student with purchased_lessons and category', async () => {
+      const res = await request(app)
+        .post('/api/users')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ email: 'newstudent@test.com', password: 'Pass123!', name: 'New', role: USER_ROLES.STUDENT, purchased_lessons: 5, category: 'B' });
+      expect(res.status).toBe(201);
+      expect(res.body.purchased_lessons).toBe(5);
+      expect(res.body.category).toBe('B');
+    });
+
+    test('PUT /api/users/:id - update category validates allowed values', async () => {
+      const res = await request(app)
+        .put(`/api/users/${studentUser.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ category: 'X' });
+      expect(res.status).toBe(400);
+    });
+
+    test('PUT /api/users/:id - admin can update purchased_lessons', async () => {
+      const res = await request(app)
+        .put(`/api/users/${studentUser.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ purchased_lessons: 20 });
+      expect(res.status).toBe(200);
+      expect(res.body.purchased_lessons).toBe(20);
     });
   });
 });

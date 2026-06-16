@@ -1,8 +1,7 @@
 import express from 'express';
 import request from 'supertest';
-import { createTestUser, getAuthToken } from './helpers.js';
+import { createStudent, tokenFor } from './helpers.js';
 import notificationsRouter from '../src/routes/notifications.js';
-import { USER_ROLES } from '../src/constants.js';
 
 const createTestApp = () => {
   const app = express();
@@ -18,8 +17,8 @@ describe('Notification Preferences', () => {
 
   beforeEach(async () => {
     app = createTestApp();
-    student = await createTestUser('student@example.com', 'password123', 'Student', USER_ROLES.STUDENT);
-    studentToken = getAuthToken(student.id, student.email, USER_ROLES.STUDENT);
+    student = await createStudent({ email: 'student@example.com', password: 'password123', name: 'Student' });
+    studentToken = tokenFor(student);
   });
 
   test('GET /preferences creates defaults if absent', async () => {
@@ -92,10 +91,10 @@ describe('Notification List and Read', () => {
 
   beforeEach(async () => {
     app = createTestApp();
-    student = await createTestUser('ns@example.com', 'password123', 'NS Student', USER_ROLES.STUDENT);
-    otherStudent = await createTestUser('other@example.com', 'password123', 'Other', USER_ROLES.STUDENT);
-    studentToken = getAuthToken(student.id, student.email, USER_ROLES.STUDENT);
-    otherToken = getAuthToken(otherStudent.id, otherStudent.email, USER_ROLES.STUDENT);
+    student = await createStudent({ email: 'ns@example.com', password: 'password123', name: 'NS Student' });
+    otherStudent = await createStudent({ email: 'other@example.com', password: 'password123', name: 'Other' });
+    studentToken = tokenFor(student);
+    otherToken = tokenFor(otherStudent);
   });
 
   test('GET /notifications returns empty list when no notifications', async () => {
@@ -111,8 +110,8 @@ describe('Notification List and Read', () => {
 
   test('GET /notifications returns own notifications paginated', async () => {
     const { Notification } = await import('../src/models/Notification.js');
-    await Notification.create(student.id, 'class_reminder', 'Lembrete', 'Sua aula começa em 15 min', null, null);
-    await Notification.create(student.id, 'class_cancelled', 'Cancelada', 'Aula cancelada', null, null);
+    await Notification.create(student.id, 'class_reminder', 'Lembrete', 'Sua aula começa em 15 min');
+    await Notification.create(student.id, 'class_cancelled', 'Cancelada', 'Aula cancelada');
 
     const res = await request(app)
       .get('/api/notifications')
@@ -125,7 +124,7 @@ describe('Notification List and Read', () => {
 
   test('GET /notifications does not return other users notifications', async () => {
     const { Notification } = await import('../src/models/Notification.js');
-    await Notification.create(otherStudent.id, 'class_reminder', 'Lembrete', 'Não é seu', null, null);
+    await Notification.create(otherStudent.id, 'class_reminder', 'Lembrete', 'Não é seu');
 
     const res = await request(app)
       .get('/api/notifications')
@@ -137,8 +136,8 @@ describe('Notification List and Read', () => {
 
   test('GET /notifications/unread-count returns correct count', async () => {
     const { Notification } = await import('../src/models/Notification.js');
-    await Notification.create(student.id, 'class_reminder', 'T1', 'B1', null, null);
-    await Notification.create(student.id, 'class_reminder', 'T2', 'B2', null, null);
+    await Notification.create(student.id, 'class_reminder', 'T1', 'B1');
+    await Notification.create(student.id, 'class_reminder', 'T2', 'B2');
 
     const res = await request(app)
       .get('/api/notifications/unread-count')
@@ -150,7 +149,7 @@ describe('Notification List and Read', () => {
 
   test('PUT /notifications/:id/read marks notification as read', async () => {
     const { Notification } = await import('../src/models/Notification.js');
-    const notif = await Notification.create(student.id, 'class_reminder', 'T', 'B', null, null);
+    const notif = await Notification.create(student.id, 'class_reminder', 'T', 'B');
 
     const res = await request(app)
       .put(`/api/notifications/${notif.id}/read`)
@@ -167,7 +166,7 @@ describe('Notification List and Read', () => {
 
   test('PUT /notifications/:id/read returns 403 for other users notification', async () => {
     const { Notification } = await import('../src/models/Notification.js');
-    const notif = await Notification.create(otherStudent.id, 'class_reminder', 'T', 'B', null, null);
+    const notif = await Notification.create(otherStudent.id, 'class_reminder', 'T', 'B');
 
     const res = await request(app)
       .put(`/api/notifications/${notif.id}/read`)
@@ -178,8 +177,8 @@ describe('Notification List and Read', () => {
 
   test('PUT /notifications/read-all marks all as read', async () => {
     const { Notification } = await import('../src/models/Notification.js');
-    await Notification.create(student.id, 'class_reminder', 'T1', 'B1', null, null);
-    await Notification.create(student.id, 'class_cancelled', 'T2', 'B2', null, null);
+    await Notification.create(student.id, 'class_reminder', 'T1', 'B1');
+    await Notification.create(student.id, 'class_cancelled', 'T2', 'B2');
 
     await request(app)
       .put('/api/notifications/read-all')

@@ -1,7 +1,10 @@
 {
   "buildCommand": "npm install",
-  "env": {
-    "DATABASE_URL": "@database_url",
-    "JWT_SECRET": "@jwt_secret"
-  }
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index.js" }],
+  "crons": [
+    {
+      "path": "/api/cron/send-reminders",
+      "schedule": "0 8 * * *"
+    }
+  ]
 }

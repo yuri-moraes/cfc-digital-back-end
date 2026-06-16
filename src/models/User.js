@@ -19,7 +19,7 @@ export class User {
    * @throws {BadRequestError} If role is invalid
    * @throws {ConflictError} If email already exists
    */
-  static async create(email, password, name, role, phoneNumber = null) {
+  static async create(email, password, name, role, phoneNumber = null, purchasedLessons = 0, category = null) {
     const validRoles = Object.values(USER_ROLES);
     if (!validRoles.includes(role)) {
       throw new BadRequestError(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
@@ -37,10 +37,10 @@ export class User {
     const passwordHash = await hashPassword(password);
 
     const result = await query(
-      `INSERT INTO users (email, password_hash, name, role, phone_number)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, email, name, role, phone_number, created_at, updated_at`,
-      [email, passwordHash, name, role, phoneNumber]
+      `INSERT INTO users (email, password_hash, name, role, phone_number, purchased_lessons, category)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, email, name, role, phone_number, purchased_lessons, category, created_at, updated_at`,
+      [email, passwordHash, name, role, phoneNumber, purchasedLessons, category]
     );
 
     return result.rows[0];
@@ -59,7 +59,7 @@ export class User {
     }
 
     const result = await query(
-      'SELECT id, email, name, role, phone_number, created_at, updated_at FROM users WHERE id = $1',
+      'SELECT id, email, name, role, phone_number, purchased_lessons, category, created_at, updated_at FROM users WHERE id = $1',
       [id]
     );
 
@@ -123,13 +123,20 @@ export class User {
    * @throws {NotFoundError} If user not found
    */
   static async update(id, updates) {
-    const allowedFields = ['name', 'email', 'phone_number'];
+    const allowedFields = ['name', 'email', 'phone_number', 'purchased_lessons', 'category'];
     const updateFields = Object.keys(updates).filter((key) =>
       allowedFields.includes(key)
     );
 
     if (updateFields.length === 0) {
       throw new BadRequestError('No valid fields to update');
+    }
+
+    if (updates.category !== undefined && updates.category !== null) {
+      const validCategories = [null, 'A', 'B', 'AB', 'C', 'D', 'E'];
+      if (!validCategories.includes(updates.category)) {
+        throw new BadRequestError(`Invalid category. Must be one of: ${validCategories.filter(c => c !== null).join(', ')}, or null`);
+      }
     }
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -156,7 +163,7 @@ export class User {
     const result = await query(
       `UPDATE users SET ${setClauses}, updated_at = CURRENT_TIMESTAMP
        WHERE id = $${updateFields.length + 1}
-       RETURNING id, email, name, role, phone_number, created_at, updated_at`,
+       RETURNING id, email, name, role, phone_number, purchased_lessons, category, created_at, updated_at`,
       values
     );
 
@@ -188,7 +195,7 @@ export class User {
   static async list({ limit = 20, offset = 0 } = {}) {
     const [dataResult, countResult] = await Promise.all([
       query(
-        'SELECT id, email, name, role, phone_number, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+        'SELECT id, email, name, role, phone_number, purchased_lessons, category, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
         [limit, offset]
       ),
       query('SELECT COUNT(*) FROM users'),

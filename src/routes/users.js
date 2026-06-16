@@ -65,7 +65,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
  */
 router.post('/', authMiddleware, requireRole(USER_ROLES.ADMIN), async (req, res) => {
   try {
-    const { email, password, name, role, phone_number } = req.body;
+    const { email, password, name, role, phone_number, purchased_lessons, category } = req.body;
 
     validateRequired(email, 'email');
     validateRequired(password, 'password');
@@ -76,7 +76,7 @@ router.post('/', authMiddleware, requireRole(USER_ROLES.ADMIN), async (req, res)
     validatePassword(password);
     validateRole(role);
 
-    const user = await User.create(email, password, name, role, phone_number ?? null);
+    const user = await User.create(email, password, name, role, phone_number ?? null, purchased_lessons ?? 0, category ?? null);
 
     res.status(201).json(user);
   } catch (error) {

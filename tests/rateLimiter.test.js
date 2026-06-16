@@ -2,8 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import rateLimit from 'express-rate-limit';
 import authRouter from '../src/routes/auth.js';
-import { createTestUser } from './helpers.js';
-import { USER_ROLES } from '../src/constants.js';
+import { createStudent } from './helpers.js';
 
 const buildAppWithAuthLimiter = (max) => {
   const limiter = rateLimit({
@@ -53,7 +52,7 @@ describe('Auth rate limiter', () => {
 describe('API rate limiter', () => {
   test('allows requests under the limit', async () => {
     const app = buildAppWithApiLimiter(5);
-    await createTestUser('user@example.com', 'password123', 'User', USER_ROLES.STUDENT);
+    await createStudent({ email: 'user@example.com', password: 'password123', name: 'User' });
     const res = await request(app)
       .post('/api/auth/login')
       .send({ email: 'user@example.com', password: 'password123' });

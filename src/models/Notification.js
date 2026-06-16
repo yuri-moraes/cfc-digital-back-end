@@ -2,12 +2,12 @@ import { query } from '../db/pool.js';
 import { NotFoundError, ForbiddenError } from '../utils/errors.js';
 
 export class Notification {
-  static async create(userId, type, title, body, scheduleId, classDate) {
+  static async create(userId, type, title, body, lessonSlotId = null) {
     const result = await query(
-      `INSERT INTO notifications (user_id, type, title, body, schedule_id, class_date)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, user_id, type, title, body, schedule_id, class_date, read_at, created_at`,
-      [userId, type, title, body, scheduleId, classDate]
+      `INSERT INTO notifications (user_id, type, title, body, lesson_slot_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, user_id, type, title, body, lesson_slot_id, read_at, created_at`,
+      [userId, type, title, body, lessonSlotId]
     );
     return result.rows[0];
   }
@@ -16,7 +16,7 @@ export class Notification {
     const offset = (page - 1) * limit;
     const [dataResult, countResult] = await Promise.all([
       query(
-        `SELECT id, user_id, type, title, body, schedule_id, class_date, read_at, created_at
+        `SELECT id, user_id, type, title, body, lesson_slot_id, read_at, created_at
          FROM notifications
          WHERE user_id = $1
          ORDER BY created_at DESC
@@ -45,7 +45,7 @@ export class Notification {
     const result = await query(
       `UPDATE notifications SET read_at = CURRENT_TIMESTAMP
        WHERE id = $1
-       RETURNING id, user_id, type, title, body, schedule_id, class_date, read_at, created_at`,
+       RETURNING id, user_id, type, title, body, lesson_slot_id, read_at, created_at`,
       [id]
     );
     return result.rows[0];
@@ -66,10 +66,10 @@ export class Notification {
     return parseInt(result.rows[0].count, 10);
   }
 
-  static async dedupeExists(userId, scheduleId, classDate, type) {
+  static async dedupeExists(userId, lessonSlotId, type) {
     const result = await query(
-      'SELECT 1 FROM notifications WHERE user_id = $1 AND schedule_id = $2 AND class_date = $3 AND type = $4',
-      [userId, scheduleId, classDate, type]
+      'SELECT 1 FROM notifications WHERE user_id = $1 AND lesson_slot_id = $2 AND type = $3',
+      [userId, lessonSlotId, type]
     );
     return result.rows.length > 0;
   }
