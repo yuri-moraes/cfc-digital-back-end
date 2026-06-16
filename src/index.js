@@ -13,13 +13,14 @@ import { logger } from './utils/logger.js';
 export async function createApp() {
   const app = express();
 
+  app.set('trust proxy', 1);
   app.use(cors({ origin: config.cors.origin, credentials: true }));
   app.use(express.json());
   app.use(requestLogger);
   app.use('/api/auth/login', authLimiter);
   app.use('/api', apiLimiter);
 
-  app.get('/health', (req, res) => {
+  app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });
   });
 
