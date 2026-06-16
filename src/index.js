@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { pathToFileURL } from 'url';
 import { config } from './config.js';
 import { initPool } from './db/pool.js';
 import { runMigrations } from './db/init.js';
@@ -48,6 +49,6 @@ export async function startServer() {
   }
 }
 
-if (config.node_env !== 'test') {
+if (config.node_env !== 'test' && import.meta.url === pathToFileURL(process.argv[1]).href) {
   startServer();
 }

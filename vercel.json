@@ -1,5 +1,6 @@
 {
   "buildCommand": "npm install",
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index.js" }],
   "crons": [
     {
       "path": "/api/cron/send-reminders",
